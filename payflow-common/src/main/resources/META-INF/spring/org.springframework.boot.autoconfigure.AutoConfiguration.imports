@@ -1,0 +1,2 @@
+com.payflow.common.autoconfigure.PayFlowWebAutoConfiguration
+com.payflow.common.autoconfigure.PayFlowOutboxAutoConfiguration

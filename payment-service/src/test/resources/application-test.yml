@@ -1,0 +1,31 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: localhost:59092
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+payflow:
+  jwt:
+    secret: test-secret-that-is-at-least-sixty-four-bytes-long-for-hs512-signing-ok
+  internal:
+    token: test-internal-token
+  services:
+    merchant-url: http://localhost:19999
+    provider-url: http://localhost:19999
+    risk-url: http://localhost:19999
+  outbox:
+    enabled: false
+management:
+  health:
+    redis:
+      enabled: false
+logging:
+  level:
+    org.testcontainers: INFO
+    com.payflow: DEBUG

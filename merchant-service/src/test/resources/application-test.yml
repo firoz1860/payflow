@@ -1,0 +1,17 @@
+spring:
+  kafka:
+    listener:
+      auto-startup: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+payflow:
+  jwt:
+    secret: test-secret-that-is-at-least-sixty-four-bytes-long-for-hs512-signing-ok
+  internal:
+    token: test-internal-token
+  api-key:
+    pepper: test-api-key-pepper
+  outbox:
+    enabled: false

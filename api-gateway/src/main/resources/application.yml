@@ -1,0 +1,169 @@
+server:
+  port: 8080
+  max-http-request-header-size: 16KB
+  netty:
+    max-initial-line-length: 8192
+  shutdown: graceful
+spring:
+  application:
+    name: api-gateway
+  codec:
+    max-in-memory-size: 256KB          # hard request body ceiling at the edge
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+  cloud:
+    gateway:
+      httpclient:
+        connect-timeout: 1000
+        response-timeout: 10s
+      default-filters:
+        - name: RequestSize
+          args:
+            maxSize: 256000
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: ${PAYFLOW_CORS_ORIGINS:https://dashboard.payflow.local,http://localhost:5173}
+            allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowedHeaders: [Authorization, Content-Type, Idempotency-Key, X-Correlation-Id]
+            exposedHeaders: [X-Correlation-Id, X-RateLimit-Remaining]
+            allowCredentials: true
+            maxAge: 3600
+      routes:
+        - id: auth-service
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+            - name: CircuitBreaker
+              args:
+                name: authServiceCircuit
+                fallbackUri: forward:/fallback/service-unavailable
+        - id: merchant-service
+          uri: ${MERCHANT_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/merchants/**,/api/v1/api-keys/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+            - name: CircuitBreaker
+              args:
+                name: merchantServiceCircuit
+                fallbackUri: forward:/fallback/service-unavailable
+        - id: customer-service
+          uri: ${CUSTOMER_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/v1/customers/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+        - id: payment-service
+          uri: ${PAYMENT_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/v1/payments/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 100
+                redis-rate-limiter.burstCapacity: 200
+            - name: CircuitBreaker
+              args:
+                name: paymentServiceCircuit
+                fallbackUri: forward:/fallback/service-unavailable
+        - id: refund-service
+          uri: ${REFUND_SERVICE_URL:http://localhost:8087}
+          predicates:
+            - Path=/api/v1/refunds/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+        - id: settlement-service
+          uri: ${SETTLEMENT_SERVICE_URL:http://localhost:8089}
+          predicates:
+            - Path=/api/v1/settlements/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+        - id: webhook-service
+          uri: ${WEBHOOK_SERVICE_URL:http://localhost:8091}
+          predicates:
+            - Path=/api/v1/webhook-endpoints/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+payflow:
+  jwt:
+    secret: ${JWT_SECRET:${JWT_PUBLIC_SECRET:change-me-in-env-at-least-64-bytes-of-entropy-for-hs512-signing!}}
+  gateway:
+    public-paths:
+      - /api/v1/auth/register
+      - /api/v1/auth/login
+      - /api/v1/auth/refresh
+      - /api/v1/auth/password-reset/**
+      - /api/v1/auth/verify-email/**
+      - /actuator/health/**
+      - /fallback/**
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 20s
+        permittedNumberOfCallsInHalfOpenState: 5
+        registerHealthIndicator: true
+    instances:
+      authServiceCircuit: { baseConfig: default }
+      merchantServiceCircuit: { baseConfig: default }
+      paymentServiceCircuit: { baseConfig: default }
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 10s
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO

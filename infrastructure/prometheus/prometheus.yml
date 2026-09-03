@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+  external_labels:
+    platform: payflow
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+scrape_configs:
+  - job_name: payflow-services
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['api-gateway:8080']
+        labels: { service: api-gateway }
+      - targets: ['auth-service:8081']
+        labels: { service: auth-service }
+      - targets: ['merchant-service:8082']
+        labels: { service: merchant-service }
+      - targets: ['payment-service:8085']
+        labels: { service: payment-service }
+      - targets: ['provider-service:8086']
+        labels: { service: provider-service }
+      - targets: ['ledger-service:8088']
+        labels: { service: ledger-service }
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

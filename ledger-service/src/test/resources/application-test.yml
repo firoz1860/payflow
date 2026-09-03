@@ -1,0 +1,9 @@
+spring:
+  kafka:
+    listener:
+      auto-startup: false
+payflow:
+  internal:
+    token: test-internal-token
+  outbox:
+    enabled: false

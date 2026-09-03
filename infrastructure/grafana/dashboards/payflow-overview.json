@@ -1,0 +1,153 @@
+{
+  "uid": "payflow-overview",
+  "title": "PayFlow — Platform Overview",
+  "tags": ["payflow"],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Payment success rate (5m)",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.9 },
+              { "color": "green", "value": 0.97 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "1 - (sum(rate(payflow_payment_failed_total[5m])) / clamp_min(sum(rate(payflow_payment_created_total[5m])), 0.001))",
+          "legendFormat": "success"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Outbox backlog",
+      "description": "Events written but not yet published to Kafka. A rising value means merchants stop receiving webhooks and the ledger stops being fed.",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 100 },
+              { "color": "red", "value": 500 }
+            ]
+          }
+        }
+      },
+      "targets": [{ "expr": "sum(payflow_outbox_pending)", "legendFormat": "pending" }]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Unbalanced ledger postings (10m)",
+      "description": "Must always be zero. Any non-zero value means something wrote entries outside LedgerService.",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "targets": [{ "expr": "increase(payflow_ledger_unbalanced_total[10m])", "legendFormat": "rejected" }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Open circuit breakers",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        { "expr": "sum(resilience4j_circuitbreaker_state{state=\"open\"})", "legendFormat": "open" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Payments per second",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "targets": [
+        { "expr": "sum(rate(payflow_payment_created_total[1m]))", "legendFormat": "created" },
+        { "expr": "sum(rate(payflow_payment_failed_total[1m]))", "legendFormat": "failed" },
+        { "expr": "sum(rate(payflow_payment_risk_blocked_total[1m]))", "legendFormat": "risk blocked" },
+        { "expr": "sum(rate(payflow_payment_risk_review_total[1m]))", "legendFormat": "held for review" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "API latency (p50 / p95 / p99)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket[5m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[5m])) by (le))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Provider webhooks",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "targets": [
+        { "expr": "sum(rate(payflow_provider_webhook_accepted_total[1m]))", "legendFormat": "accepted" },
+        { "expr": "sum(rate(payflow_provider_webhook_duplicate_total[1m]))", "legendFormat": "deduplicated" },
+        { "expr": "sum(rate(payflow_provider_webhook_rejected_total[1m]))", "legendFormat": "rejected (bad signature)" }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Ledger postings and outbox throughput",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "targets": [
+        { "expr": "sum(rate(payflow_ledger_posted_total[1m]))", "legendFormat": "postings" },
+        { "expr": "sum(rate(payflow_ledger_duplicate_total[1m]))", "legendFormat": "duplicate events ignored" },
+        { "expr": "sum(rate(payflow_outbox_published_total[1m]))", "legendFormat": "outbox published" },
+        { "expr": "sum(rate(payflow_outbox_publish_failed_total[1m]))", "legendFormat": "outbox failures" }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "JVM heap and DB connection pool",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
+      "targets": [
+        { "expr": "sum(jvm_memory_used_bytes{area=\"heap\"}) by (application)", "legendFormat": "{{application}} heap" },
+        { "expr": "sum(hikaricp_connections_active) by (application)", "legendFormat": "{{application}} active connections" },
+        { "expr": "sum(hikaricp_connections_pending) by (application)", "legendFormat": "{{application}} pending" }
+      ]
+    }
+  ]
+}
