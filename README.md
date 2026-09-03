@@ -510,6 +510,1098 @@ Start-Sleep -Seconds 25
 docker compose up -d --build
 docker compose ps
 
-## License
+---
 
-MIT
+# GitHub Codespaces Deployment
+
+PayFlow can also be run completely in **GitHub Codespaces**.
+
+This is useful when Docker Desktop, Java, Maven, PostgreSQL, Redis, or Kafka
+should not be installed directly on the developer's Windows machine.
+
+The complete development environment runs remotely:
+
+```text
+Windows / Browser
+       |
+       v
+GitHub Codespaces
+       |
+       v
+Docker Engine
+       |
+       +-- API Gateway
+       +-- Auth Service
+       +-- Merchant Service
+       +-- Payment Service
+       +-- Provider Service
+       +-- Ledger Service
+       +-- PostgreSQL
+       +-- Redis
+       +-- Kafka
+       +-- Kafka UI
+       +-- Prometheus
+       +-- Grafana
+```
+
+The backend has been successfully run and verified in GitHub Codespaces with
+all core containers reporting healthy status.
+
+---
+
+## Codespaces Port Map
+
+When running through Docker Compose in Codespaces:
+
+| Component | Host Port | Purpose |
+|---|---:|---|
+| API Gateway | `8000` | Main public PayFlow entry point |
+| Auth Service | `8081` | Authentication and JWT |
+| Merchant Service | `8082` | Merchants and API keys |
+| Payment Service | `8085` | Payment APIs and Swagger |
+| Provider Service | `8086` | Payment provider integration |
+| Ledger Service | `8088` | Double-entry accounting |
+| PostgreSQL | `5433` | Database infrastructure |
+| Redis | `6381` | Cache / rate limiting |
+| Kafka | `9092` | Event broker |
+| Kafka UI | `8090` | Kafka inspection UI |
+| Prometheus | `9090` | Metrics |
+| Grafana | `3000` | Monitoring dashboards |
+
+In GitHub Codespaces, only port `8000` should normally be made **Public**.
+
+Application service and infrastructure ports should remain private unless a
+temporary demonstration requires direct access.
+
+Especially keep these private:
+
+```text
+5433  PostgreSQL
+6381  Redis
+9092  Kafka
+```
+
+---
+
+# Codespaces Environment Setup
+
+From the repository root inside the Codespace, create `.env`.
+
+A secure environment can be generated with:
+
+```bash
+cat > .env <<EOF
+POSTGRES_USER=payflow
+POSTGRES_PASSWORD=$(openssl rand -hex 24)
+
+REDIS_PASSWORD=$(openssl rand -hex 24)
+
+JWT_SECRET=$(openssl rand -hex 64)
+
+API_KEY_PEPPER=$(openssl rand -hex 32)
+
+PAYFLOW_INTERNAL_TOKEN=$(openssl rand -hex 32)
+
+GRAFANA_ADMIN_PASSWORD=$(openssl rand -hex 16)
+
+PAYFLOW_ADMIN_EMAIL=admin@payflow.local
+PAYFLOW_ADMIN_PASSWORD=$(openssl rand -hex 16)
+
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+EOF
+```
+
+Check only the variable names:
+
+```bash
+cut -d= -f1 .env
+```
+
+Expected variables include:
+
+```text
+POSTGRES_USER
+POSTGRES_PASSWORD
+REDIS_PASSWORD
+JWT_SECRET
+API_KEY_PEPPER
+PAYFLOW_INTERNAL_TOKEN
+GRAFANA_ADMIN_PASSWORD
+PAYFLOW_ADMIN_EMAIL
+PAYFLOW_ADMIN_PASSWORD
+RAZORPAY_KEY_ID
+RAZORPAY_KEY_SECRET
+RAZORPAY_WEBHOOK_SECRET
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+```
+
+Never commit `.env`.
+
+Recommended `.gitignore` entries:
+
+```gitignore
+.env
+.env.*
+!.env.example
+**/target/
+```
+
+Real credentials and tokens should never be placed in the repository.
+
+If any secret is accidentally exposed in a screenshot, Git commit, issue,
+message, or public log, rotate that value before using the deployment again.
+
+---
+
+# Starting PayFlow in Codespaces
+
+Start infrastructure first:
+
+```bash
+docker compose up -d postgres redis kafka
+```
+
+Check:
+
+```bash
+docker compose ps
+```
+
+Wait until PostgreSQL, Redis, and Kafka are healthy.
+
+Then start and build the Spring Boot services:
+
+```bash
+docker compose up -d --build \
+auth-service \
+merchant-service \
+provider-service \
+payment-service \
+ledger-service \
+api-gateway
+```
+
+The first build can take several minutes because Maven dependencies and Docker
+images must be downloaded.
+
+When the command finishes, run:
+
+```bash
+docker compose ps
+```
+
+A successful deployment should look similar to:
+
+```text
+payflow-api-gateway        Up (...) (healthy)
+payflow-auth-service       Up (...) (healthy)
+payflow-merchant-service   Up (...) (healthy)
+payflow-payment-service    Up (...) (healthy)
+payflow-provider-service   Up (...) (healthy)
+payflow-ledger-service     Up (...) (healthy)
+payflow-postgres           Up (...) (healthy)
+payflow-redis              Up (...) (healthy)
+payflow-kafka              Up (...) (healthy)
+```
+
+This confirms that the core PayFlow backend is running.
+
+---
+
+# Verify PayFlow Health
+
+Verify the API Gateway from inside Codespaces:
+
+```bash
+curl -i http://localhost:8000/actuator/health
+```
+
+Expected result:
+
+```text
+HTTP/1.1 200 OK
+Content-Type: application/vnd.spring-boot.actuator.v3+json
+```
+
+with:
+
+```json
+{
+  "status": "UP",
+  "groups": [
+    "liveness",
+    "readiness"
+  ]
+}
+```
+
+This proves that the API Gateway is running and passing Spring Boot health
+checks.
+
+A successful Codespaces deployment has been verified with:
+
+```json
+{"status":"UP","groups":["liveness","readiness"]}
+```
+
+and all core Docker containers showing:
+
+```text
+healthy
+```
+
+---
+
+# Public Codespaces API
+
+In VS Code Codespaces:
+
+```text
+Ports
+  |
+  v
+8000
+  |
+  v
+Port Visibility
+  |
+  v
+Public
+```
+
+GitHub provides a forwarded address similar to:
+
+```text
+https://YOUR-CODESPACE-NAME-8000.app.github.dev
+```
+
+The health endpoint becomes:
+
+```text
+https://YOUR-CODESPACE-NAME-8000.app.github.dev/actuator/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "UP",
+  "groups": [
+    "liveness",
+    "readiness"
+  ]
+}
+```
+
+Opening only:
+
+```text
+https://YOUR-CODESPACE-NAME-8000.app.github.dev/
+```
+
+may display:
+
+```text
+Whitelabel Error Page
+404 Not Found
+```
+
+This does **not** mean the deployment failed.
+
+PayFlow is a backend-first payment platform and no controller is currently
+mapped to the root `/` path.
+
+The health endpoint and payment APIs are the correct surfaces for validating
+the backend.
+
+---
+
+# How to Evaluate PayFlow
+
+PayFlow is not primarily a customer-facing website.
+
+It is a backend payment infrastructure project designed to demonstrate the
+systems behind payment providers such as Stripe and Razorpay.
+
+The project can be evaluated through several different surfaces.
+
+```text
+1. Docker container health
+2. Spring Boot actuator health
+3. Swagger / OpenAPI
+4. QR / UPI payment creation
+5. Payment lifecycle
+6. Provider webhooks
+7. Kafka events
+8. Double-entry ledger
+9. Prometheus metrics
+10. Grafana dashboards
+```
+
+---
+
+# Swagger UI
+
+The Payment Service exposes Swagger/OpenAPI documentation.
+
+Local URL:
+
+```text
+http://localhost:8085/swagger-ui.html
+```
+
+GitHub Codespaces URL:
+
+```text
+https://YOUR-CODESPACE-NAME-8085.app.github.dev/swagger-ui.html
+```
+
+Port `8085` can remain private when used from the same authenticated Codespace.
+
+Swagger provides an interactive API interface for endpoints such as:
+
+```text
+POST /api/v1/payments
+
+GET /api/v1/payments/{paymentReference}
+
+GET /api/v1/payments
+
+POST /api/v1/payments/{paymentReference}/cancel
+```
+
+The payment API requires authentication, which means opening a protected
+endpoint without credentials may return a response similar to:
+
+```json
+{
+  "code": "UNAUTHORIZED",
+  "message": "Authentication required"
+}
+```
+
+This is expected behaviour and confirms that authentication controls are active.
+
+---
+
+# QR / UPI Demo
+
+One of the most visible PayFlow features is QR payment generation.
+
+Create a payment with:
+
+```json
+{
+  "amount": 250,
+  "currency": "INR",
+  "merchantOrderId": "order-1001",
+  "description": "PayFlow QR Demo",
+  "paymentMethod": "QR"
+}
+```
+
+The payment response contains information similar to:
+
+```json
+{
+  "paymentReference": "pay_xxxxx",
+  "status": "PENDING",
+  "qrCode": {
+    "data": "upi://pay?pa=payflow.sandbox@upi&pn=PayFlow+Sandbox&am=250.00&cu=INR&tr=pay_xxxxx",
+    "image": "data:image/png;base64,iVBORw0KGgo..."
+  }
+}
+```
+
+`qrCode.data` is the UPI payment intent.
+
+`qrCode.image` is the QR image that a frontend can render.
+
+The QR flow is:
+
+```text
+Merchant
+   |
+   | create QR payment
+   v
+Payment Service
+   |
+   v
+Provider Service
+   |
+   v
+Generate fixed amount QR
+   |
+   v
+Payment = PENDING
+   |
+   v
+Customer scans QR
+   |
+   v
+Payment provider confirms transaction
+   |
+   v
+Signed provider webhook
+   |
+   v
+Provider Service
+   |
+   v
+Kafka
+   |
+   v
+Payment Service
+   |
+   v
+PENDING -> CAPTURED
+   |
+   v
+Kafka
+   |
+   v
+Ledger Service
+   |
+   v
+Balanced accounting entries
+```
+
+A browser or frontend saying that a payment completed is not trusted.
+
+Only a verified provider event can move the payment into the captured state.
+
+---
+
+# End-to-End Smoke Test
+
+PayFlow provides:
+
+```text
+infrastructure/scripts/smoke-test.sh
+```
+
+Load the current Codespaces `.env` values:
+
+```bash
+export PAYFLOW_INTERNAL_TOKEN="$(grep '^PAYFLOW_INTERNAL_TOKEN=' .env | cut -d= -f2-)"
+
+export SEED_ADMIN_PASSWORD="$(grep '^PAYFLOW_ADMIN_PASSWORD=' .env | cut -d= -f2-)"
+
+export SEED_ADMIN_EMAIL="$(grep '^PAYFLOW_ADMIN_EMAIL=' .env | cut -d= -f2-)"
+```
+
+Run:
+
+```bash
+GATEWAY=http://localhost:8000 \
+PROVIDER=http://localhost:8086 \
+LEDGER=http://localhost:8088 \
+./infrastructure/scripts/smoke-test.sh
+```
+
+The smoke test exercises the complete backend flow:
+
+```text
+Platform admin login
+        |
+        v
+Create merchant
+        |
+        v
+Activate merchant
+        |
+        v
+Create merchant / owner
+        |
+        v
+Generate TEST API key
+        |
+        v
+Create payment
+        |
+        v
+Retry same payment
+        |
+        v
+Verify idempotency
+        |
+        v
+Provider webhook
+        |
+        v
+Kafka event
+        |
+        v
+Payment CAPTURED
+        |
+        v
+Ledger posting
+```
+
+The important guarantees are:
+
+```text
+Same Idempotency-Key
+        |
+        v
+No duplicate payment
+```
+
+and:
+
+```text
+Duplicate provider webhook
+        |
+        v
+No duplicate ledger posting
+```
+
+For a ₹1000 transaction with a ₹20 platform fee:
+
+```text
+Customer payment       ₹1000
+Platform fee             ₹20
+Merchant payable        ₹980
+```
+
+and:
+
+```text
+Total debit  = ₹1000
+Total credit = ₹1000
+```
+
+---
+
+# Kafka UI
+
+Kafka UI provides a visual way to inspect the event-driven part of PayFlow.
+
+Start it with:
+
+```bash
+docker compose up -d kafka-ui
+```
+
+Open:
+
+```text
+http://localhost:8090
+```
+
+or from Codespaces:
+
+```text
+https://YOUR-CODESPACE-NAME-8090.app.github.dev
+```
+
+Kafka UI can be used to inspect:
+
+```text
+topics
+partitions
+messages
+consumer groups
+payment events
+provider events
+ledger events
+```
+
+This helps demonstrate how services communicate asynchronously.
+
+---
+
+# Prometheus
+
+Start Prometheus:
+
+```bash
+docker compose up -d prometheus
+```
+
+Open:
+
+```text
+http://localhost:9090
+```
+
+Codespaces:
+
+```text
+https://YOUR-CODESPACE-NAME-9090.app.github.dev
+```
+
+Prometheus collects metrics from Spring Boot Actuator endpoints.
+
+Examples include:
+
+```text
+HTTP request metrics
+JVM metrics
+database connection metrics
+payment failure metrics
+outbox backlog metrics
+service health metrics
+```
+
+---
+
+# Grafana
+
+Start Grafana:
+
+```bash
+docker compose up -d grafana
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+Codespaces:
+
+```text
+https://YOUR-CODESPACE-NAME-3000.app.github.dev
+```
+
+Grafana provides dashboards for operational monitoring.
+
+The administrator password comes from:
+
+```text
+GRAFANA_ADMIN_PASSWORD
+```
+
+inside `.env`.
+
+---
+
+# Start the Complete Monitoring Stack
+
+Kafka UI, Prometheus, and Grafana are optional.
+
+The core payment system can run without their user interfaces.
+
+Start all three with:
+
+```bash
+docker compose up -d kafka-ui prometheus grafana
+```
+
+Then check:
+
+```bash
+docker compose ps
+```
+
+The complete development stack can contain:
+
+```text
+PostgreSQL
+Redis
+Kafka
+Kafka UI
+Prometheus
+Grafana
+
+API Gateway
+Auth Service
+Merchant Service
+Payment Service
+Provider Service
+Ledger Service
+```
+
+---
+
+# Useful Docker Commands
+
+Check container status:
+
+```bash
+docker compose ps
+```
+
+View all logs:
+
+```bash
+docker compose logs -f
+```
+
+Payment Service logs:
+
+```bash
+docker compose logs --tail=200 payment-service
+```
+
+API Gateway logs:
+
+```bash
+docker compose logs --tail=200 api-gateway
+```
+
+Auth Service logs:
+
+```bash
+docker compose logs --tail=200 auth-service
+```
+
+Merchant Service logs:
+
+```bash
+docker compose logs --tail=200 merchant-service
+```
+
+Provider Service logs:
+
+```bash
+docker compose logs --tail=200 provider-service
+```
+
+Ledger Service logs:
+
+```bash
+docker compose logs --tail=200 ledger-service
+```
+
+PostgreSQL logs:
+
+```bash
+docker compose logs --tail=200 postgres
+```
+
+Redis logs:
+
+```bash
+docker compose logs --tail=200 redis
+```
+
+Kafka logs:
+
+```bash
+docker compose logs --tail=200 kafka
+```
+
+Restart one service:
+
+```bash
+docker compose restart payment-service
+```
+
+Rebuild one service:
+
+```bash
+docker compose up -d --build payment-service
+```
+
+Stop all containers but keep stored Docker volumes:
+
+```bash
+docker compose down
+```
+
+Start the infrastructure again:
+
+```bash
+docker compose up -d postgres redis kafka
+```
+
+Then start application services:
+
+```bash
+docker compose up -d \
+auth-service \
+merchant-service \
+provider-service \
+payment-service \
+ledger-service \
+api-gateway
+```
+
+Do not use:
+
+```bash
+docker compose down -v
+```
+
+unless the development database and Docker volumes should intentionally be
+deleted.
+
+The `-v` option removes Docker volumes and can erase PostgreSQL development data.
+
+---
+
+# Fast Verification Commands
+
+After opening or restarting the Codespace, these commands provide a quick
+verification:
+
+```bash
+docker compose ps
+```
+
+```bash
+curl http://localhost:8000/actuator/health
+```
+
+Expected:
+
+```json
+{"status":"UP","groups":["liveness","readiness"]}
+```
+
+To test individual services:
+
+```bash
+curl http://localhost:8081/actuator/health
+curl http://localhost:8082/actuator/health
+curl http://localhost:8085/actuator/health
+curl http://localhost:8086/actuator/health
+curl http://localhost:8088/actuator/health
+```
+
+---
+
+# What a Successful Deployment Looks Like
+
+A healthy PayFlow deployment should show:
+
+```text
+api-gateway        healthy
+auth-service       healthy
+merchant-service   healthy
+payment-service    healthy
+provider-service   healthy
+ledger-service     healthy
+postgres           healthy
+redis              healthy
+kafka              healthy
+```
+
+and:
+
+```bash
+curl -i http://localhost:8000/actuator/health
+```
+
+should return:
+
+```text
+HTTP/1.1 200 OK
+```
+
+with:
+
+```json
+{
+  "status": "UP",
+  "groups": [
+    "liveness",
+    "readiness"
+  ]
+}
+```
+
+These checks have been successfully completed with this repository running in
+GitHub Codespaces.
+
+---
+
+# How to Demonstrate PayFlow in an Interview
+
+A useful demonstration sequence is:
+
+```text
+1. Explain the microservice architecture
+        |
+        v
+2. Run docker compose ps
+        |
+        v
+3. Show every service healthy
+        |
+        v
+4. Open API Gateway /actuator/health
+        |
+        v
+5. Open Payment Service Swagger
+        |
+        v
+6. Authenticate / obtain TEST API key
+        |
+        v
+7. Create a payment
+        |
+        v
+8. Create a QR / UPI payment
+        |
+        v
+9. Show generated QR
+        |
+        v
+10. Show payment initially PENDING
+        |
+        v
+11. Trigger sandbox/provider webhook
+        |
+        v
+12. Show payment become CAPTURED
+        |
+        v
+13. Open Kafka UI
+        |
+        v
+14. Show the payment event
+        |
+        v
+15. Show ledger posting
+        |
+        v
+16. Show Prometheus / Grafana monitoring
+```
+
+This demonstrates much more than a CRUD API.
+
+The important backend concepts shown are:
+
+```text
+Microservices
+Spring Boot
+API Gateway
+JWT authentication
+Merchant API keys
+PostgreSQL
+Redis
+Kafka
+Transactional outbox
+Idempotency
+Provider abstraction
+Webhook verification
+QR / UPI payments
+Double-entry ledger
+Docker Compose
+Health checks
+Prometheus
+Grafana
+GitHub Codespaces
+```
+
+---
+
+# Current UI Scope
+
+PayFlow is currently a **backend-first payment infrastructure platform**.
+
+It does not currently include a complete React, Next.js, Angular, or other
+customer-facing frontend application.
+
+That is why opening the API Gateway root path `/` does not display a payment
+dashboard.
+
+The current visual/evaluation surfaces are:
+
+```text
+Swagger UI
+Generated QR payment image
+Kafka UI
+Prometheus
+Grafana
+Spring Actuator health endpoints
+GitHub Codespaces forwarded URLs
+```
+
+A future frontend can be built on top of the existing APIs.
+
+Possible frontend screens include:
+
+```text
+Merchant Login
+Merchant Dashboard
+Create Payment
+QR Checkout
+Payment Status
+Transaction History
+Payment Details
+API Key Management
+Webhook Management
+Ledger View
+Settlement View
+Analytics Dashboard
+Monitoring Dashboard
+```
+
+The backend already provides the payment infrastructure required by such a
+frontend.
+
+---
+
+# PayFlow Purpose in One View
+
+```text
+                           PAYFLOW
+
+Merchant / Application
+        |
+        v
+     API Gateway
+        |
+        +---------------------------+
+        |                           |
+        v                           v
+Authentication                Merchant Management
+        |                           |
+        +-------------+-------------+
+                      |
+                      v
+                Payment Service
+                      |
+         +------------+------------+
+         |                         |
+         v                         v
+      Redis                 Provider Service
+                                   |
+                                   v
+                          Sandbox / Razorpay
+                                   |
+                                   v
+                             Signed Webhook
+                                   |
+                                   v
+                                 Kafka
+                                   |
+                     +-------------+-------------+
+                     |                           |
+                     v                           v
+               Payment State               Ledger Service
+                                                |
+                                                v
+                                       Double Entry Ledger
+```
+
+The purpose of PayFlow is to demonstrate how a payment system remains correct
+when networks, retries, third-party providers, concurrent requests, and
+asynchronous event delivery can all fail.
+
+The main goal is not simply to expose payment endpoints.
+
+The main goal is to guarantee:
+
+```text
+No duplicate charges
+No duplicate webhook processing
+No silently lost Kafka events
+No cross-merchant data leakage
+No unbalanced financial ledger
+No client-controlled payment success
+No secrets stored in source code
+```
+
+That is the core of the project.
