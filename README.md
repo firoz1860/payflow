@@ -9,6 +9,41 @@ webhook verification, and refund concurrency.
 > audit) are specified in [`docs/ROADMAP.md`](docs/ROADMAP.md) with the exact
 > patterns to follow — the contracts they plug into already exist here.
 
+                         PayFlow
+                            |
+                       API Gateway
+                            |
+          +-----------------+------------------+
+          |                 |                  |
+        Auth             Merchant          Customer
+          |                 |
+          +--------+--------+
+                   |
+               Payments
+                   |
+       +-----------+------------+
+       |           |            |
+     Risk       Provider      Refund
+                   |
+           Razorpay / Stripe
+                   |
+                Webhooks
+                   |
+                 Kafka
+       +-----------+------------+
+       |           |            |
+     Ledger    Settlement   Reconciliation
+       |
+       +---------------------------+
+                                   |
+                         Merchant Dashboard
+                                   |
+                 +-----------------+----------------+
+                 |                 |                |
+             Payments          Analytics        API Keys
+                 |
+            QR Checkout
+
 ---
 
 ## Why this exists
