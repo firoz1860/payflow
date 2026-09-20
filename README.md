@@ -9,6 +9,8 @@ webhook verification, and refund concurrency.
 > audit) are specified in [`docs/ROADMAP.md`](docs/ROADMAP.md) with the exact
 > patterns to follow — the contracts they plug into already exist here.
 
+![PayFlow Architecture](./diagram.png)
+
                          PayFlow
                             |
                        API Gateway
