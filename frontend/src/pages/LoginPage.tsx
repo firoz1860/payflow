@@ -129,10 +129,10 @@ export function LoginPage() {
             </motion.button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-500">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-brand-600 hover:text-brand-700">Create one</Link>
-          </p>
+          <div className="flex items-center justify-between mt-6 text-sm">
+            <Link to="/register" className="font-medium text-brand-600 hover:text-brand-700">Create account</Link>
+            <Link to="/forgot-password" className="font-medium text-slate-500 hover:text-brand-600">Forgot password?</Link>
+          </div>
         </motion.div>
       </motion.div>
     </div>

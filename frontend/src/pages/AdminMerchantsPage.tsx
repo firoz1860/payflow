@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Plus, Building2, ShieldCheck, RefreshCw, Zap } from 'lucide-react';
+import { Plus, Building2, ShieldCheck, RefreshCw, Zap, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { createMerchant, changeMerchantStatus, enableLiveMode } from '../services/merchantService';
 import { PageHeader } from '../components/PageHeader';
 import { Modal } from '../components/Modal';
@@ -93,7 +94,9 @@ export function AdminMerchantsPage() {
                       className="table-row-hover"
                     >
                       <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-slate-900">{m.businessName}</p>
+                        <Link to={`/admin/merchants/${m.id}`} className="text-sm font-medium text-slate-900 hover:text-brand-600 transition">
+                          {m.businessName}
+                        </Link>
                         <p className="text-xs text-slate-500">{m.email}</p>
                       </td>
                       <td className="px-6 py-4 text-sm font-mono text-slate-600">{m.merchantCode}</td>
@@ -107,6 +110,9 @@ export function AdminMerchantsPage() {
                       <td className="px-6 py-4 text-sm text-slate-500">{formatDateTime(m.createdAt)}</td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-1">
+                          <Link to={`/admin/merchants/${m.id}`} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition" title="View Details">
+                            <ExternalLink className="w-4 h-4" />
+                          </Link>
                           {m.status === 'ACTIVE' && !m.liveModeEnabled && (
                             <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleLive(m.id)}
                               className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition" title="Enable Live Mode">

@@ -2,7 +2,7 @@ import { ReactNode, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, CreditCard, KeyRound, Building2, LogOut,
-  ShieldCheck, Receipt, ChevronLeft, Menu, X,
+  ShieldCheck, Receipt, ChevronLeft, Menu, X, Users,
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth';
 import { cn } from '../lib/utils';
@@ -18,6 +18,7 @@ const merchantNav = [
 
 const adminNav = [
   { to: '/admin/merchants', label: 'Merchants', icon: ShieldCheck, perm: 'platform:admin' },
+  { to: '/admin/roles', label: 'User Roles', icon: Users, perm: 'platform:admin' },
 ];
 
 export function Sidebar() {
