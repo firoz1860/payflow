@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Copy, CheckCircle2, XCircle, Clock, QrCode, RefreshCw, XCircle as Cancel,
 } from 'lucide-react';
@@ -11,11 +11,11 @@ import { Modal } from '../components/Modal';
 import { toast } from '../components/Toast';
 import { extractError } from '../api';
 import { formatCurrency, formatDateTime } from '../lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { Payment } from '../types';
 
 export function PaymentDetailPage() {
   const { reference } = useParams<{ reference: string }>();
-  const navigate = useNavigate();
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -86,10 +86,11 @@ export function PaymentDetailPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main info */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Summary card */}
-          <div className="card p-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+            className="card p-6"
+          >
             <div className="flex items-start justify-between mb-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -116,15 +117,21 @@ export function PaymentDetailPage() {
               <Info label="Refunded Amount" value={formatCurrency(payment.refundedAmount, payment.currency)} />
               <Info label="Refundable Amount" value={formatCurrency(payment.refundableAmount, payment.currency)} />
             </dl>
-          </div>
+          </motion.div>
 
-          {/* Attempts */}
-          <div className="card p-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }}
+            className="card p-6"
+          >
             <h3 className="text-sm font-semibold text-slate-900 mb-4">Payment Attempts</h3>
             {payment.attempts && payment.attempts.length > 0 ? (
               <div className="space-y-3">
-                {payment.attempts.map((a) => (
-                  <div key={a.attemptNumber} className="flex items-center gap-4 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                {payment.attempts.map((a, i) => (
+                  <motion.div
+                    key={a.attemptNumber}
+                    initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + i * 0.1 }}
+                    className="flex items-center gap-4 p-3 rounded-lg bg-slate-50 border border-slate-100"
+                  >
                     <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs font-medium text-slate-600">
                       {a.attemptNumber}
                     </div>
@@ -137,18 +144,20 @@ export function PaymentDetailPage() {
                       {a.failureCode && <p className="text-xs text-red-500 mt-0.5">{a.failureCode}: {a.failureMessage}</p>}
                     </div>
                     <StatusBadge status={a.status} />
-                    <span className="text-xs text-slate-400">{formatDateTime(a.createdAt)}</span>
-                  </div>
+                    <span className="text-xs text-slate-400 hidden sm:inline">{formatDateTime(a.createdAt)}</span>
+                  </motion.div>
                 ))}
               </div>
             ) : (
               <p className="text-sm text-slate-500">No attempts recorded</p>
             )}
-          </div>
+          </motion.div>
 
-          {/* Metadata */}
           {payment.metadata && Object.keys(payment.metadata).length > 0 && (
-            <div className="card p-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.4 }}
+              className="card p-6"
+            >
               <h3 className="text-sm font-semibold text-slate-900 mb-4">Metadata</h3>
               <div className="space-y-2">
                 {Object.entries(payment.metadata).map(([k, v]) => (
@@ -158,33 +167,44 @@ export function PaymentDetailPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* QR Code */}
           {payment.qrCode && (
-            <div className="card p-6 text-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="card p-6 text-center"
+            >
               <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center justify-center gap-2">
                 <QrCode className="w-4 h-4" /> QR Code
               </h3>
-              <div className="inline-block p-4 bg-white border-2 border-slate-200 rounded-xl">
+              <motion.div
+                whileHover={{ scale: 1.05, rotate: 1 }}
+                transition={{ type: 'spring', damping: 15 }}
+                className="inline-block p-4 bg-white border-2 border-slate-200 rounded-xl"
+              >
                 <img src={payment.qrCode.image} alt="QR Code" className="w-48 h-48" />
-              </div>
+              </motion.div>
               <p className="mt-3 text-xs text-slate-500 font-mono break-all">{payment.qrCode.data}</p>
               {isPending && (
-                <div className="mt-4 flex items-center justify-center gap-2 text-sm text-amber-600">
-                  <Clock className="w-4 h-4 animate-pulse-soft" /> Waiting for payment…
-                </div>
+                <motion.div
+                  animate={{ opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="mt-4 flex items-center justify-center gap-2 text-sm text-amber-600"
+                >
+                  <Clock className="w-4 h-4" /> Waiting for payment…
+                </motion.div>
               )}
-            </div>
+            </motion.div>
           )}
 
-          {/* Checkout URL */}
           {payment.checkoutUrl && (
-            <div className="card p-6">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15, duration: 0.4 }}
+              className="card p-6"
+            >
               <h3 className="text-sm font-semibold text-slate-900 mb-3">Checkout URL</h3>
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
                 <p className="text-xs text-slate-500 font-mono break-all mb-3">{payment.checkoutUrl}</p>
@@ -192,12 +212,14 @@ export function PaymentDetailPage() {
                   Open Checkout
                 </a>
               </div>
-            </div>
+            </motion.div>
           )}
 
-          {/* Failure info */}
           {payment.failureCode && (
-            <div className="card p-6 border-red-200">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2, duration: 0.4 }}
+              className="card p-6 border-red-200"
+            >
               <div className="flex items-start gap-3">
                 <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                 <div>
@@ -206,12 +228,11 @@ export function PaymentDetailPage() {
                   {payment.failureMessage && <p className="text-xs text-red-500 mt-1">{payment.failureMessage}</p>}
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
 
-      {/* Cancel modal */}
       <Modal open={cancelOpen} onClose={() => setCancelOpen(false)} title="Cancel Payment" size="sm">
         <p className="text-sm text-slate-600 mb-4">
           Are you sure you want to cancel this payment? This action cannot be undone.
@@ -219,8 +240,7 @@ export function PaymentDetailPage() {
         <div className="mb-4">
           <label className="label">Reason (optional)</label>
           <textarea
-            value={cancelReason}
-            onChange={(e) => setCancelReason(e.target.value)}
+            value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
             placeholder="Reason for cancellation…"
             className="input min-h-[80px] resize-none"
           />

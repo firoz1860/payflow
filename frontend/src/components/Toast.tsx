@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, XCircle, AlertCircle, Info, X } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -43,17 +44,27 @@ export function ToastContainer() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
-      {toasts.map((t) => (
-        <div key={t.id} className={cn('flex items-start gap-3 p-4 bg-white rounded-lg border shadow-lg animate-slide-up', bg[t.type])}>
-          {icons[t.type]}
-          <p className="text-sm text-slate-700 flex-1">{t.message}</p>
-          <button onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
-            className="text-slate-400 hover:text-slate-600">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      ))}
+    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm pointer-events-none">
+      <AnimatePresence>
+        {toasts.map((t) => (
+          <motion.div
+            key={t.id}
+            layout
+            initial={{ opacity: 0, x: 100, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 100, scale: 0.9 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 400 }}
+            className={cn('flex items-start gap-3 p-4 bg-white rounded-lg border shadow-lg pointer-events-auto', bg[t.type])}
+          >
+            {icons[t.type]}
+            <p className="text-sm text-slate-700 flex-1">{t.message}</p>
+            <button onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+              className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }

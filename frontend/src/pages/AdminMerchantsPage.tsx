@@ -1,34 +1,23 @@
 import { useEffect, useState } from 'react';
-import { Plus, Building2, ShieldCheck, RefreshCw, DollarSign, Zap } from 'lucide-react';
-import {
-  createMerchant, changeMerchantStatus, updateMerchantPricing, enableLiveMode,
-} from '../services/merchantService';
+import { Plus, Building2, ShieldCheck, RefreshCw, Zap } from 'lucide-react';
+import { createMerchant, changeMerchantStatus, enableLiveMode } from '../services/merchantService';
 import { PageHeader } from '../components/PageHeader';
 import { Modal } from '../components/Modal';
-import { CardSpinner, EmptyState } from '../components/Spinner';
+import { EmptyState } from '../components/Spinner';
 import { StatusBadge } from '../components/StatusBadge';
 import { merchantStatusConfig } from '../lib/status';
 import { toast } from '../components/Toast';
 import { extractError } from '../api';
 import { formatDateTime } from '../lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { Merchant, MerchantStatus } from '../types';
-
-// Since there's no admin list endpoint, we'll use individual lookups
-// The admin can create merchants and manage by ID
 
 export function AdminMerchantsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [recentMerchants, setRecentMerchants] = useState<Merchant[]>([]);
-  const [form, setForm] = useState({
-    businessName: '',
-    email: '',
-    phone: '',
-    country: 'IN',
-    defaultCurrency: 'INR',
-  });
+  const [form, setForm] = useState({ businessName: '', email: '', phone: '', country: 'IN', defaultCurrency: 'INR' });
 
-  // Load from localStorage since we don't have a list endpoint
   useEffect(() => {
     const stored = localStorage.getItem('payflow-recent-merchants');
     if (stored) setRecentMerchants(JSON.parse(stored));
@@ -48,11 +37,8 @@ export function AdminMerchantsPage() {
       setCreateOpen(false);
       setForm({ businessName: '', email: '', phone: '', country: 'IN', defaultCurrency: 'INR' });
       toast('success', `Merchant "${m.businessName}" created`);
-    } catch (err) {
-      toast('error', extractError(err));
-    } finally {
-      setCreating(false);
-    }
+    } catch (err) { toast('error', extractError(err)); }
+    finally { setCreating(false); }
   };
 
   const handleStatus = async (id: string, status: MerchantStatus) => {
@@ -60,9 +46,7 @@ export function AdminMerchantsPage() {
       const m = await changeMerchantStatus(id, status);
       saveRecent(m);
       toast('success', `Merchant ${status.toLowerCase()}`);
-    } catch (err) {
-      toast('error', extractError(err));
-    }
+    } catch (err) { toast('error', extractError(err)); }
   };
 
   const handleLive = async (id: string) => {
@@ -71,31 +55,20 @@ export function AdminMerchantsPage() {
       const m = await enableLiveMode(id);
       saveRecent(m);
       toast('success', 'Live mode enabled');
-    } catch (err) {
-      toast('error', extractError(err));
-    }
+    } catch (err) { toast('error', extractError(err)); }
   };
 
   return (
     <>
-      <PageHeader
-        title="Merchant Management"
-        description="Onboard and manage merchants (Platform Admin)"
-        actions={
-          <button onClick={() => setCreateOpen(true)} className="btn-primary">
-            <Plus className="w-4 h-4" /> Onboard Merchant
-          </button>
-        }
+      <PageHeader title="Merchant Management" description="Onboard and manage merchants (Platform Admin)"
+        actions={<button onClick={() => setCreateOpen(true)} className="btn-primary"><Plus className="w-4 h-4" /> Onboard Merchant</button>}
       />
 
       <div className="card overflow-hidden">
         {recentMerchants.length === 0 ? (
-          <EmptyState
-            icon={<Building2 className="w-6 h-6" />}
-            title="No merchants yet"
+          <EmptyState icon={<Building2 className="w-6 h-6" />} title="No merchants yet"
             description="Onboard your first merchant to get started"
-            action={<button onClick={() => setCreateOpen(true)} className="btn-primary"><Plus className="w-4 h-4" /> Onboard Merchant</button>}
-          />
+            action={<button onClick={() => setCreateOpen(true)} className="btn-primary"><Plus className="w-4 h-4" /> Onboard Merchant</button>} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -111,49 +84,58 @@ export function AdminMerchantsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {recentMerchants.map((m) => (
-                  <tr key={m.id} className="table-row-hover">
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-medium text-slate-900">{m.businessName}</p>
-                      <p className="text-xs text-slate-500">{m.email}</p>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-mono text-slate-600">{m.merchantCode}</td>
-                    <td className="px-6 py-4"><StatusBadge status={m.status} config={merchantStatusConfig} /></td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{m.defaultCurrency}</td>
-                    <td className="px-6 py-4">
-                      <span className={`badge ${m.liveModeEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                        {m.liveModeEnabled ? 'Enabled' : 'Test'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-500">{formatDateTime(m.createdAt)}</td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-1">
-                        {m.status === 'ACTIVE' && !m.liveModeEnabled && (
-                          <button onClick={() => handleLive(m.id)} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition" title="Enable Live Mode">
-                            <Zap className="w-4 h-4" />
-                          </button>
-                        )}
-                        {m.status === 'ACTIVE' && (
-                          <button onClick={() => handleStatus(m.id, 'SUSPENDED')} className="p-1.5 rounded-lg text-orange-500 hover:bg-orange-50 transition" title="Suspend">
-                            <ShieldCheck className="w-4 h-4" />
-                          </button>
-                        )}
-                        {m.status === 'SUSPENDED' && (
-                          <button onClick={() => handleStatus(m.id, 'ACTIVE')} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition" title="Reactivate">
-                            <RefreshCw className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                <AnimatePresence>
+                  {recentMerchants.map((m, i) => (
+                    <motion.tr
+                      key={m.id}
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}
+                      transition={{ delay: i * 0.05, duration: 0.2 }}
+                      className="table-row-hover"
+                    >
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-medium text-slate-900">{m.businessName}</p>
+                        <p className="text-xs text-slate-500">{m.email}</p>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-mono text-slate-600">{m.merchantCode}</td>
+                      <td className="px-6 py-4"><StatusBadge status={m.status} config={merchantStatusConfig} /></td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{m.defaultCurrency}</td>
+                      <td className="px-6 py-4">
+                        <span className={`badge ${m.liveModeEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {m.liveModeEnabled ? 'Enabled' : 'Test'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{formatDateTime(m.createdAt)}</td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-1">
+                          {m.status === 'ACTIVE' && !m.liveModeEnabled && (
+                            <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleLive(m.id)}
+                              className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition" title="Enable Live Mode">
+                              <Zap className="w-4 h-4" />
+                            </motion.button>
+                          )}
+                          {m.status === 'ACTIVE' && (
+                            <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleStatus(m.id, 'SUSPENDED')}
+                              className="p-1.5 rounded-lg text-orange-500 hover:bg-orange-50 transition" title="Suspend">
+                              <ShieldCheck className="w-4 h-4" />
+                            </motion.button>
+                          )}
+                          {m.status === 'SUSPENDED' && (
+                            <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleStatus(m.id, 'ACTIVE')}
+                              className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition" title="Reactivate">
+                              <RefreshCw className="w-4 h-4" />
+                            </motion.button>
+                          )}
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Create modal */}
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Onboard Merchant" size="md">
         <div className="space-y-4">
           <div>

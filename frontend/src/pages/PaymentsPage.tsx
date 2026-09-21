@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, Filter, Download, CreditCard } from 'lucide-react';
+import { Search, Plus, Filter, CreditCard } from 'lucide-react';
 import { listPayments } from '../services/paymentService';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { CardSpinner, EmptyState } from '../components/Spinner';
 import { formatCurrency, formatDateTime } from '../lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { Payment, PageResponse } from '../types';
 
 const STATUS_FILTERS = ['ALL', 'CAPTURED', 'PENDING', 'PROCESSING', 'FAILED', 'CANCELLED', 'REFUNDED'];
@@ -23,8 +24,7 @@ export function PaymentsPage() {
     try {
       const res = await listPayments({
         status: status !== 'ALL' ? status : undefined,
-        page,
-        size: pageSize,
+        page, size: pageSize,
       });
       setData(res);
     } catch {
@@ -53,36 +53,35 @@ export function PaymentsPage() {
         }
       />
 
-      {/* Filters */}
-      <div className="card p-4 mb-6">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+        className="card p-4 mb-6"
+      >
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by reference or order ID…"
               className="input pl-10"
             />
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
             <Filter className="w-4 h-4 text-slate-400 flex-shrink-0" />
             {STATUS_FILTERS.map((s) => (
-              <button
+              <motion.button
                 key={s}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => { setStatus(s); setPage(0); }}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap ${
                   status === s ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
-              >
-                {s}
-              </button>
+              >{s}</motion.button>
             ))}
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Table */}
       <div className="card overflow-hidden">
         {loading ? (
           <CardSpinner />
@@ -108,26 +107,34 @@ export function PaymentsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filtered.map((p) => (
-                    <tr key={p.paymentReference} className="table-row-hover cursor-pointer"
-                      onClick={() => window.location.href = `/payments/${p.paymentReference}`}>
-                      <td className="px-6 py-4">
-                        <Link to={`/payments/${p.paymentReference}`} className="font-mono text-sm text-brand-600 hover:text-brand-700">
-                          {p.paymentReference.substring(0, 24)}
-                        </Link>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{p.merchantOrderId || '—'}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-900">{formatCurrency(p.amount, p.currency)}</td>
-                      <td className="px-6 py-4"><StatusBadge status={p.status} /></td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{p.attempts?.[0]?.paymentMethod || '—'}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">{formatDateTime(p.createdAt)}</td>
-                    </tr>
-                  ))}
+                  <AnimatePresence>
+                    {filtered.map((p, i) => (
+                      <motion.tr
+                        key={p.paymentReference}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ delay: i * 0.03, duration: 0.2 }}
+                        className="table-row-hover cursor-pointer"
+                        onClick={() => window.location.href = `/payments/${p.paymentReference}`}
+                      >
+                        <td className="px-6 py-4">
+                          <Link to={`/payments/${p.paymentReference}`} className="font-mono text-sm text-brand-600 hover:text-brand-700">
+                            {p.paymentReference.substring(0, 24)}
+                          </Link>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{p.merchantOrderId || '—'}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-slate-900">{formatCurrency(p.amount, p.currency)}</td>
+                        <td className="px-6 py-4"><StatusBadge status={p.status} /></td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{p.attempts?.[0]?.paymentMethod || '—'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-500">{formatDateTime(p.createdAt)}</td>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
                 </tbody>
               </table>
             </div>
 
-            {/* Pagination */}
             {data && data.totalPages > 1 && (
               <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200">
                 <p className="text-sm text-slate-500">
