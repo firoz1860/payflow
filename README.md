@@ -567,6 +567,7 @@ GitHub Codespaces
        v
 Docker Engine
        |
+       +-- Frontend Dashboard (nginx, proxies /api -> gateway)
        +-- API Gateway
        +-- Auth Service
        +-- Merchant Service
@@ -592,6 +593,7 @@ When running through Docker Compose in Codespaces:
 
 | Component | Host Port | Purpose |
 |---|---:|---|
+| Frontend Dashboard | `5173` | React dashboard (nginx; proxies `/api` to the gateway) |
 | API Gateway | `8000` | Main public PayFlow entry point |
 | Auth Service | `8081` | Authentication and JWT |
 | Merchant Service | `8082` | Merchants and API keys |
@@ -605,7 +607,10 @@ When running through Docker Compose in Codespaces:
 | Prometheus | `9090` | Metrics |
 | Grafana | `3000` | Monitoring dashboards |
 
-In GitHub Codespaces, only port `8000` should normally be made **Public**.
+In GitHub Codespaces, make port `5173` **Public** to open the dashboard. The
+dashboard proxies API calls to the gateway internally over the Docker network,
+so the gateway on `8000` can stay private (make it Public only if you want to
+call the raw API or Swagger directly).
 
 Application service and infrastructure ports should remain private unless a
 temporary demonstration requires direct access.
@@ -712,7 +717,7 @@ docker compose ps
 
 Wait until PostgreSQL, Redis, and Kafka are healthy.
 
-Then start and build the Spring Boot services:
+Then start and build the Spring Boot services plus the dashboard:
 
 ```bash
 docker compose up -d --build \
@@ -721,11 +726,17 @@ merchant-service \
 provider-service \
 payment-service \
 ledger-service \
-api-gateway
+api-gateway \
+frontend
 ```
 
 The first build can take several minutes because Maven dependencies and Docker
-images must be downloaded.
+images must be downloaded. (On a 2-core / 8 GB Codespace the full stack is tight
+— prefer a 4-core / 16 GB machine, or build the services one at a time.)
+
+The `frontend` container serves the built React dashboard on host port `5173`
+and reverse-proxies `/api` to the gateway over the Docker network, so no CORS
+configuration or `VITE_API_URL` is required in this setup.
 
 When the command finishes, run:
 
@@ -736,6 +747,7 @@ docker compose ps
 A successful deployment should look similar to:
 
 ```text
+payflow-frontend           Up (...) (healthy)
 payflow-api-gateway        Up (...) (healthy)
 payflow-auth-service       Up (...) (healthy)
 payflow-merchant-service   Up (...) (healthy)
@@ -1535,17 +1547,19 @@ GitHub Codespaces
 
 # Current UI Scope
 
-PayFlow is currently a **backend-first payment infrastructure platform**.
+PayFlow is a **backend-first payment infrastructure platform** with a React
+dashboard (`frontend/`) built on top of its APIs.
 
-It does not currently include a complete React, Next.js, Angular, or other
-customer-facing frontend application.
+The dashboard runs as the `frontend` container (host port `5173`) and is served
+by nginx, which proxies `/api` to the gateway. Opening the **API Gateway** root
+path `/` (port `8000`) still does not display a dashboard — the gateway only
+serves `/api/v1/**` and `/actuator/health`; the UI lives on the `frontend`
+service.
 
-That is why opening the API Gateway root path `/` does not display a payment
-dashboard.
-
-The current visual/evaluation surfaces are:
+The visual/evaluation surfaces are:
 
 ```text
+React Dashboard (frontend, port 5173)
 Swagger UI
 Generated QR payment image
 Kafka UI
@@ -1555,25 +1569,22 @@ Spring Actuator health endpoints
 GitHub Codespaces forwarded URLs
 ```
 
-A future frontend can be built on top of the existing APIs.
-
-Possible frontend screens include:
+The React dashboard already implements these screens:
 
 ```text
-Merchant Login
-Merchant Dashboard
-Create Payment
-QR Checkout
-Payment Status
-Transaction History
-Payment Details
-API Key Management
-Webhook Management
-Ledger View
-Settlement View
-Analytics Dashboard
-Monitoring Dashboard
+Login / Register / Forgot & Reset Password / Verify Email
+Dashboard (volume + status analytics)
+Payments list (transaction history) with filters
+Create Payment (idempotent)
+Payment Detail (with cancel)
+API Key Management (create / list / revoke)
+Merchant Profile (view / update)
+Admin: Merchants (create / status / pricing / live-mode)
+Admin: Roles (assignment)
 ```
+
+Screens not yet built (candidates for future work): dedicated Webhook
+Management, Ledger View, Settlement View, and standalone Monitoring pages.
 
 The backend already provides the payment infrastructure required by such a
 frontend.
