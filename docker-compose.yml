@@ -241,6 +241,21 @@ services:
       timeout: 5s
       retries: 10
       start_period: 180s
+  frontend:
+    build: { context: ./frontend, dockerfile: Dockerfile }
+    container_name: payflow-frontend
+    restart: unless-stopped
+    networks: [payflow]
+    mem_limit: 256m
+    ports: ["5173:80"]
+    depends_on:
+      api-gateway: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 networks:
   payflow:
     driver: bridge
