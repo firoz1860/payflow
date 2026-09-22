@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   TrendingUp, DollarSign, CreditCard, CheckCircle2, Clock, ArrowUpRight, Plus,
+  Mail, AlertCircle,
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -58,6 +59,20 @@ export function DashboardPage() {
           </Link>
         }
       />
+
+      {user && !user.emailVerified && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+          className="flex items-center gap-3 p-4 mb-6 rounded-xl bg-amber-50 border border-amber-200"
+        >
+          <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-900">Please verify your email address</p>
+            <p className="text-xs text-amber-700 mt-0.5">Check your inbox for a verification link to unlock all features.</p>
+          </div>
+          <Mail className="w-5 h-5 text-amber-400 flex-shrink-0" />
+        </motion.div>
+      )}
 
       <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StaggerItem>
