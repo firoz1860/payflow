@@ -1,5 +1,7 @@
 package com.payflow.merchant.repository;
 import com.payflow.merchant.domain.Merchant;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.Optional;
@@ -10,4 +12,5 @@ public interface MerchantRepository extends JpaRepository<Merchant, UUID> {
     Optional<Merchant> findByEmailIgnoreCase(String email);
     boolean existsByEmailIgnoreCase(String email);
     boolean existsByMerchantCode(String merchantCode);
+    Page<Merchant> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

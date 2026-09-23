@@ -53,6 +53,16 @@ public class MerchantController {
         UUID merchantId = TenantGuard.requireMerchant(principal);
         return ResponseEntity.ok(merchantService.update(merchantId, principal.userId(), request));
     }
+    @GetMapping
+    @PreAuthorize("hasAuthority('platform:admin')")
+    @Operation(summary = "List all merchants (paginated, platform admin only)")
+    public ResponseEntity<org.springframework.data.domain.Page<MerchantDtos.MerchantResponse>> list(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size) {
+        int cappedSize = Math.min(Math.max(size, 1), 100);
+        return ResponseEntity.ok(merchantService.list(
+                org.springframework.data.domain.PageRequest.of(Math.max(page, 0), cappedSize)));
+    }
     @GetMapping("/{merchantId}")
     @PreAuthorize("hasAuthority('platform:admin')")
     public ResponseEntity<MerchantDtos.MerchantResponse> getById(@PathVariable UUID merchantId) {

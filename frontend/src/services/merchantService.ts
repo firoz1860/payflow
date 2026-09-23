@@ -1,5 +1,5 @@
 import api from '../api';
-import type { Merchant, ApiKey, CreateApiKeyResponse, MerchantStatus } from '../types';
+import type { Merchant, ApiKey, CreateApiKeyResponse, MerchantStatus, PageResponse } from '../types';
 
 export async function getMyMerchant() {
   const res = await api.get<Merchant>('/merchants/me');
@@ -29,6 +29,11 @@ export async function listApiKeys() {
 
 export async function revokeApiKey(keyId: string) {
   await api.delete(`/merchants/me/api-keys/${keyId}`);
+}
+
+export async function listMerchants(page = 0, size = 20) {
+  const res = await api.get<PageResponse<Merchant>>('/merchants', { params: { page, size } });
+  return res.data;
 }
 
 // Admin endpoints

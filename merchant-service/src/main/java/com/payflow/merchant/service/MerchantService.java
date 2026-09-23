@@ -8,6 +8,8 @@ import com.payflow.merchant.dto.MerchantDtos;
 import com.payflow.merchant.repository.MerchantRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
@@ -49,6 +51,10 @@ public class MerchantService {
     @Transactional(readOnly = true)
     public MerchantDtos.MerchantResponse get(UUID merchantId) {
         return toResponse(load(merchantId));
+    }
+    @Transactional(readOnly = true)
+    public Page<MerchantDtos.MerchantResponse> list(Pageable pageable) {
+        return merchantRepository.findAllByOrderByCreatedAtDesc(pageable).map(this::toResponse);
     }
     @Transactional
     public MerchantDtos.MerchantResponse update(UUID merchantId, UUID actorId,
