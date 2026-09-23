@@ -3,6 +3,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.payflow.common.error.PayFlowException;
 import com.payflow.common.security.ApiKeyVerifier;
 import com.payflow.common.security.PayFlowPrincipal;
+import com.payflow.payment.client.MerchantClient;
 import com.payflow.payment.domain.PaymentStatus;
 import com.payflow.payment.dto.PaymentDtos;
 import com.payflow.payment.service.IdempotencyService;
@@ -33,11 +34,13 @@ public class PaymentController {
     private final PaymentService paymentService;
     private final IdempotencyService idempotencyService;
     private final ObjectMapper objectMapper;
+    private final MerchantClient merchantClient;
     public PaymentController(PaymentService paymentService, IdempotencyService idempotencyService,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper, MerchantClient merchantClient) {
         this.paymentService = paymentService;
         this.idempotencyService = idempotencyService;
         this.objectMapper = objectMapper;
+        this.merchantClient = merchantClient;
     }
     @PostMapping
     @PreAuthorize("hasAuthority('payments:create')")
@@ -48,7 +51,7 @@ public class PaymentController {
             @RequestHeader(value = "Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody PaymentDtos.CreatePaymentRequest request,
             HttpServletRequest http) {
-        ApiKeyVerifier.Verification merchant = merchantContext(http);
+        ApiKeyVerifier.Verification merchant = resolveMerchantContext(principal, http);
         String canonicalBody = serialise(request);
         IdempotencyService.Claim claim = idempotencyService.claim(
                 principal.merchantId(), idempotencyKey, "POST /api/v1/payments", canonicalBody);
@@ -85,7 +88,7 @@ public class PaymentController {
             @RequestParam(required = false) PaymentStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        int cappedSize = Math.min(Math.max(size, 1), 100);   // never let a client ask for 10 million rows
+        int cappedSize = Math.min(Math.max(size, 1), 100);
         return ResponseEntity.ok(paymentService.list(principal, status,
                 PageRequest.of(Math.max(page, 0), cappedSize)));
     }
@@ -98,12 +101,17 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.cancel(principal, paymentReference,
                 request == null ? null : request.reason()));
     }
-    private ApiKeyVerifier.Verification merchantContext(HttpServletRequest http) {
+    private ApiKeyVerifier.Verification resolveMerchantContext(PayFlowPrincipal principal,
+                                                                HttpServletRequest http) {
         Object attribute = http.getAttribute(ApiKeyVerifier.REQUEST_ATTRIBUTE);
         if (attribute instanceof ApiKeyVerifier.Verification verification) {
             return verification;
         }
-        throw PayFlowException.forbidden("This endpoint requires a secret API key");
+        if (principal == null || principal.merchantId() == null) {
+            throw PayFlowException.forbidden("This operation requires a merchant context");
+        }
+        MerchantClient.MerchantInfo info = merchantClient.fetch(principal.merchantId());
+        return info.toVerification();
     }
     private String serialise(Object value) {
         try {

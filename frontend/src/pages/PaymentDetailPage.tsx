@@ -37,6 +37,12 @@ export function PaymentDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!payment || !['CREATED', 'PENDING', 'PROCESSING'].includes(payment.status)) return;
+    const interval = setInterval(() => { load(); }, 5000);
+    return () => clearInterval(interval);
+  }, [payment, load]);
+
   const copyRef = () => {
     navigator.clipboard.writeText(reference || '');
     setCopied(true);
