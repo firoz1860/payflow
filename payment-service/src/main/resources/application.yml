@@ -1,5 +1,5 @@
 server:
-  port: 8085
+  port: ${PORT:8085}
   shutdown: graceful
   tomcat:
     max-http-form-post-size: 256KB
@@ -75,9 +75,9 @@ payflow:
     response-timeout-ms: 3000
     connect-timeout-ms: 1000
   services:
-    merchant-url: ${MERCHANT_SERVICE_URL:http://localhost:8082}
-    provider-url: ${PROVIDER_SERVICE_URL:http://localhost:8086}
-    risk-url: ${RISK_SERVICE_URL:http://localhost:8093}
+    merchant-url: ${MERCHANT_SERVICE_URL:http://${MERCHANT_SERVICE_HOSTPORT:localhost:8082}}
+    provider-url: ${PROVIDER_SERVICE_URL:http://${PROVIDER_SERVICE_HOSTPORT:localhost:8086}}
+    risk-url: ${RISK_SERVICE_URL:http://${RISK_SERVICE_HOSTPORT:localhost:8093}}
   risk:
     fail-open-ceiling: 5000.00
   outbox:

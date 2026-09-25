@@ -212,8 +212,16 @@ public class PaymentService {
                 ? paymentRepository.findByMerchantIdOrderByCreatedAtDesc(merchantId, pageable)
                 : paymentRepository.findByMerchantIdAndStatusOrderByCreatedAtDesc(
                         merchantId, status, pageable);
+        List<UUID> paymentIds = page.getContent().stream().map(Payment::getId).toList();
+        Map<UUID, List<PaymentAttempt>> attemptsByPayment = paymentIds.isEmpty()
+                ? Map.of()
+                : attemptRepository
+                        .findByPaymentIdInOrderByPaymentIdAscAttemptNumberAsc(paymentIds)
+                        .stream()
+                        .collect(java.util.stream.Collectors.groupingBy(PaymentAttempt::getPaymentId));
         List<PaymentDtos.PaymentResponse> data = page.getContent().stream()
-                .map(p -> mapper.toResponse(p, List.of()))
+                .map(p -> mapper.toResponse(
+                        p, attemptsByPayment.getOrDefault(p.getId(), List.of())))
                 .toList();
         return new PaymentDtos.PageResponse<>(data, page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages());

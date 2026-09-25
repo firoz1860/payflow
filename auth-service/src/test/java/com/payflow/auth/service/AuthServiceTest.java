@@ -122,16 +122,60 @@ class AuthServiceTest {
         verify(oneTimeTokenRepository, never()).save(any());
     }
     @Test
-    @DisplayName("PAYFLOW_ADMIN cannot be self-assigned at registration")
-    void adminRoleCannotBeSelfAssigned() {
+    @DisplayName("public registration creates a new merchant with the submitted business name")
+    void publicRegistrationCreatesMerchantFromBusinessName() {
         when(userRepository.existsByEmailIgnoreCase(any())).thenReturn(false);
+        when(merchantRegistrationClient.create(any(), any(), any(), any(), any()))
+                .thenReturn(new MerchantRegistrationClient.CreatedMerchant(
+                        UUID.randomUUID(), "MRC_TEST", "Acme Technologies", "ACTIVE"));
+
         assertThatThrownBy(() -> authService.register(new AuthDtos.RegisterRequest(
-                "attacker@test.local", "Passw0rdPassw0rd", "Attacker", null,
-                com.payflow.auth.domain.RoleName.PAYFLOW_ADMIN)))
-                .isInstanceOf(PayFlowException.class)
-                .hasMessageContaining("cannot be self-assigned");
-        verify(userRepository, never()).save(any());
+                "owner@acme.test", "Passw0rdPassw0rd", "Jane Doe", "Acme Technologies")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Role not seeded");
+
+        verify(merchantRegistrationClient).create(
+                eq("Acme Technologies"), eq("owner@acme.test"), eq(null), eq("IN"), eq("INR"));
     }
+
+    @Test
+    @DisplayName("a merchant team manager cannot grant PAYFLOW_ADMIN")
+    void merchantTeamManagerCannotGrantPlatformAdmin() {
+        UUID merchantId = UUID.randomUUID();
+        User target = new User("member@test.local", passwordEncoder.encode("CorrectPassw0rd"),
+                "Member", merchantId);
+        target.verifyEmail();
+        when(userRepository.findById(target.getId())).thenReturn(Optional.of(target));
+
+        assertThatThrownBy(() -> authService.assignRole(
+                UUID.randomUUID(), merchantId, false, target.getId(),
+                com.payflow.auth.domain.RoleName.PAYFLOW_ADMIN))
+                .isInstanceOf(PayFlowException.class)
+                .hasMessageContaining("platform admin");
+
+        verify(roleRepository, never())
+                .findByName(com.payflow.auth.domain.RoleName.PAYFLOW_ADMIN);
+    }
+
+    @Test
+    @DisplayName("a merchant team manager cannot modify a user from another merchant")
+    void merchantTeamManagerCannotCrossTenantBoundary() {
+        UUID actorMerchantId = UUID.randomUUID();
+        User target = new User("other@test.local", passwordEncoder.encode("CorrectPassw0rd"),
+                "Other Merchant User", UUID.randomUUID());
+        target.verifyEmail();
+        when(userRepository.findById(target.getId())).thenReturn(Optional.of(target));
+
+        assertThatThrownBy(() -> authService.assignRole(
+                UUID.randomUUID(), actorMerchantId, false, target.getId(),
+                com.payflow.auth.domain.RoleName.MERCHANT_DEVELOPER))
+                .isInstanceOf(PayFlowException.class)
+                .hasMessageContaining("within your merchant");
+
+        verify(roleRepository, never())
+                .findByName(com.payflow.auth.domain.RoleName.MERCHANT_DEVELOPER);
+    }
+
     private String catchMessage(Runnable action) {
         try {
             action.run();

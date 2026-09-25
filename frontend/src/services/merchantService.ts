@@ -31,9 +31,23 @@ export async function revokeApiKey(keyId: string) {
   await api.delete(`/merchants/me/api-keys/${keyId}`);
 }
 
-export async function listMerchants(page = 0, size = 20) {
-  const res = await api.get<PageResponse<Merchant>>('/merchants', { params: { page, size } });
-  return res.data;
+interface SpringPage<T> {
+  content: T[];
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export async function listMerchants(page = 0, size = 20): Promise<PageResponse<Merchant>> {
+  const res = await api.get<SpringPage<Merchant>>('/merchants', { params: { page, size } });
+  return {
+    data: res.data.content ?? [],
+    page: res.data.number ?? page,
+    size: res.data.size ?? size,
+    totalElements: res.data.totalElements ?? 0,
+    totalPages: res.data.totalPages ?? 0,
+  };
 }
 
 // Admin endpoints

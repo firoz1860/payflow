@@ -14,6 +14,7 @@ import { QrPaymentsPage } from './pages/QrPaymentsPage';
 import { ApiKeysPage } from './pages/ApiKeysPage';
 import { MerchantProfilePage } from './pages/MerchantProfilePage';
 import { LedgerPage } from './pages/LedgerPage';
+import { LedgerPostingDetailPage } from './pages/LedgerPostingDetailPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { MonitoringPage } from './pages/MonitoringPage';
 import { WebhooksPage } from './pages/WebhooksPage';
@@ -44,9 +45,10 @@ export default function App() {
       <Route path="/payments/:reference" element={protectedPage(<PaymentDetailPage />, 'payments:read')} />
       <Route path="/transactions" element={<Navigate to="/payments" replace />} />
 
-      <Route path="/ledger" element={protectedPage(<LedgerPage />)} />
-      <Route path="/analytics" element={protectedPage(<AnalyticsPage />)} />
-      <Route path="/webhooks" element={protectedPage(<WebhooksPage />)} />
+      <Route path="/ledger" element={protectedPage(<LedgerPage />, 'ledger:read')} />
+      <Route path="/ledger/:postingId" element={protectedPage(<LedgerPostingDetailPage />, 'ledger:read')} />
+      <Route path="/analytics" element={protectedPage(<AnalyticsPage />, 'payments:read')} />
+      <Route path="/webhooks" element={protectedPage(<WebhooksPage />, 'webhooks:manage')} />
       <Route path="/developers" element={protectedPage(<DevelopersPage />)} />
 
       <Route path="/api-keys" element={protectedPage(<ApiKeysPage />, 'api_keys:manage')} />

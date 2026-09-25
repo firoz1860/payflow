@@ -16,7 +16,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus")
                         .permitAll()
-                    .requestMatchers("/internal/webhooks/providers/**").permitAll()
+                    .requestMatchers("/internal/webhooks/providers/**", "/api/v1/provider-webhooks/**").permitAll()
                     .requestMatchers("/internal/**").permitAll()
                     .anyRequest().denyAll());
         return http.build();

@@ -19,6 +19,7 @@ public final class LedgerRepositories {
                 LedgerAccount.OwnerType ownerType, String ownerId,
                 LedgerAccount.AccountType accountType, String currency);
         List<LedgerAccount> findByOwnerId(String ownerId);
+        List<LedgerAccount> findByOwnerTypeAndOwnerId(LedgerAccount.OwnerType ownerType, String ownerId);
     }
     @Repository
     public interface LedgerPostingRepository extends JpaRepository<LedgerPosting, UUID> {

@@ -3,6 +3,9 @@ spring:
     listener:
       auto-startup: false
 payflow:
+  jwt:
+    secret: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    issuer: payflow-auth
   internal:
     token: test-internal-token
   outbox:

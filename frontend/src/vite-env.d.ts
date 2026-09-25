@@ -6,9 +6,11 @@ interface ImportMetaEnv {
    * `/api/v1` suffix — e.g. `https://payflow-gateway.onrender.com/api/v1`.
    *
    * Leave unset in local development so requests fall back to the relative
-   * `/api/v1` path, which the Vite dev server proxies to http://localhost:8080.
+   * `/api/v1` path, which the Vite dev server proxies to http://localhost:8000.
    */
   readonly VITE_API_URL?: string;
+  /** Optional local Vite proxy target. Defaults to http://localhost:8000. */
+  readonly VITE_DEV_API_PROXY?: string;
 }
 
 interface ImportMeta {

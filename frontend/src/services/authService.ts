@@ -1,8 +1,8 @@
 import api from '../api';
 import type { User, TokenResponse, RoleName } from '../types';
 
-export async function register(email: string, password: string, fullName: string, merchantId?: string, role?: string) {
-  const res = await api.post<User>('/auth/register', { email, password, fullName, merchantId, role });
+export async function register(email: string, password: string, fullName: string, businessName: string) {
+  const res = await api.post<User>('/auth/register', { email, password, fullName, businessName });
   return res.data;
 }
 

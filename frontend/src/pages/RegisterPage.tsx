@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Eye, EyeOff, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, Building2, Eye, EyeOff, ArrowLeft, ArrowRight } from 'lucide-react';
 import { register } from '../services/authService';
 import { extractError } from '../api';
 import { toast } from '../components/Toast';
@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ fullName: '', email: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ fullName: '', businessName: '', email: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,10 +19,13 @@ export function RegisterPage() {
     setError('');
     if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return; }
     if (form.password.length < 12) { setError('Password must be at least 12 characters'); return; }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(form.password)) {
+      setError('Password must contain lowercase, uppercase, and a digit'); return;
+    }
 
     setLoading(true);
     try {
-      await register(form.email, form.password, form.fullName);
+      await register(form.email, form.password, form.fullName, form.businessName);
       toast('success', 'Account created! Please sign in.');
       navigate('/login');
     } catch (err) {
@@ -70,7 +73,7 @@ export function RegisterPage() {
             <span className="text-white font-bold text-2xl">P</span>
           </motion.div>
           <h1 className="text-2xl font-bold text-white">Create account</h1>
-          <p className="mt-1 text-sm text-slate-400">Join PayFlow as a merchant developer</p>
+          <p className="mt-1 text-sm text-slate-400">Create your PayFlow merchant account</p>
         </div>
 
         <motion.div
@@ -91,6 +94,15 @@ export function RegisterPage() {
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input required value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                   placeholder="Jane Doe" className="input pl-10" />
+              </div>
+            </div>
+
+            <div>
+              <label className="label">Business name</label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input required value={form.businessName} onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+                  placeholder="Acme Technologies" className="input pl-10" />
               </div>
             </div>
 

@@ -8,6 +8,12 @@ webhook verification, and refund concurrency.
 > (refund, settlement, reconciliation, risk, webhook, customer, notification,
 > audit) are specified in [`docs/ROADMAP.md`](docs/ROADMAP.md) with the exact
 > patterns to follow — the contracts they plug into already exist here.
+>
+> **Deployment.** The React/Vite dashboard is in `frontend/`. For the prepared
+> Render backend + Vercel frontend setup, see
+> [`docs/DEPLOYMENT_RENDER_VERCEL.md`](docs/DEPLOYMENT_RENDER_VERCEL.md).
+> The repository also contains a root [`render.yaml`](render.yaml) Blueprint and
+> [`frontend/vercel.json`](frontend/vercel.json). Nothing is auto-deployed by the repository.
 
 ![PayFlow Architecture](./diagram.png)
 
@@ -107,7 +113,7 @@ flowchart TB
     PAY -->|verify API key| MERCH
     PAY -->|risk check| RISK
     PAY -->|create charge| PROV
-    PROV -->|HTTPS| External[(Razorpay / Stripe<br/>sandbox)]
+    PROV -->|HTTPS| External[(Sandbox / Razorpay)]
     External -->|signed webhook| PROV
 
     PAY -.outbox.-> K[(Kafka)]
@@ -235,7 +241,7 @@ sequenceDiagram
     participant MS as merchant-service
     participant R as risk-service
     participant PR as provider-service
-    participant X as Razorpay/Stripe
+    participant X as Sandbox/Razorpay
     participant K as Kafka
     participant L as ledger-service
 
@@ -451,11 +457,15 @@ payflow/
 ├── payment-service/         payment lifecycle
 ├── provider-service/        gateway adapters + webhooks
 ├── ledger-service/          double-entry ledger
+├── frontend/                React/Vite merchant + admin dashboard
+├── render.yaml              Render backend Blueprint
 ├── infrastructure/
 │   ├── prometheus/          scrape config + alert rules
 │   ├── grafana/             datasource provisioning
 │   └── scripts/             DB init, smoke test
 ├── docs/ROADMAP.md          the eight remaining services, specified
+├── docs/DEPLOYMENT_RENDER_VERCEL.md
+│                            Render + Vercel deployment guide
 ├── .github/workflows/ci.yml build, test, scan, image build, migration check
 └── docker-compose.yml
 ```
@@ -1533,50 +1543,42 @@ GitHub Codespaces
 
 ---
 
-# Current UI Scope
+# Frontend UI Scope
 
-PayFlow is currently a **backend-first payment infrastructure platform**.
-
-It does not currently include a complete React, Next.js, Angular, or other
-customer-facing frontend application.
-
-That is why opening the API Gateway root path `/` does not display a payment
-dashboard.
-
-The current visual/evaluation surfaces are:
+PayFlow now includes a **React + Vite merchant/admin dashboard** in `frontend/`.
+It is wired to the public API Gateway and includes:
 
 ```text
-Swagger UI
-Generated QR payment image
-Kafka UI
-Prometheus
-Grafana
-Spring Actuator health endpoints
-GitHub Codespaces forwarded URLs
+Login / registration / refresh-token session handling
+Merchant dashboard
+Create payment
+QR payment creation and status polling
+Payment list and payment details
+API key management
+Merchant profile/settings
+Analytics derived from real Payment API data
+Tenant-scoped read-only ledger accounts, postings, and entry details
+Provider/system monitoring
+Admin merchant management
+Admin role assignment
+Developer documentation
+Webhook-service availability view
 ```
 
-A future frontend can be built on top of the existing APIs.
+The frontend intentionally does **not** fake backend capabilities that are not in
+the current core. Merchant webhook endpoint management remains unavailable until
+the planned webhook-service is built, and direct ledger mutation remains internal.
 
-Possible frontend screens include:
+For production-style deployment:
 
 ```text
-Merchant Login
-Merchant Dashboard
-Create Payment
-QR Checkout
-Payment Status
-Transaction History
-Payment Details
-API Key Management
-Webhook Management
-Ledger View
-Settlement View
-Analytics Dashboard
-Monitoring Dashboard
+frontend/  -> Vercel
+API Gateway + core services + infrastructure -> Render
 ```
 
-The backend already provides the payment infrastructure required by such a
-frontend.
+See [`docs/DEPLOYMENT_RENDER_VERCEL.md`](docs/DEPLOYMENT_RENDER_VERCEL.md) for
+the exact environment variables, Blueprint setup, service privacy rules, and
+post-deployment smoke checks.
 
 ---
 

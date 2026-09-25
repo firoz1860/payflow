@@ -18,8 +18,7 @@ public final class AuthDtos {
                     message = "must contain lower case, upper case and a digit")
             String password,
             @NotBlank @Size(max = 160) String fullName,
-            UUID merchantId,
-            RoleName role
+            @NotBlank @Size(max = 200) String businessName
     ) {
     }
     public record LoginRequest(

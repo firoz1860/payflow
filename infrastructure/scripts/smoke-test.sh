@@ -1,67 +1,72 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GATEWAY="${GATEWAY:-http://localhost:8080}"
+GATEWAY="${GATEWAY:-http://localhost:8000}"
 PROVIDER="${PROVIDER:-http://localhost:8086}"
 LEDGER="${LEDGER:-http://localhost:8088}"
 INTERNAL_TOKEN="${PAYFLOW_INTERNAL_TOKEN:?set PAYFLOW_INTERNAL_TOKEN}"
-SANDBOX_SECRET="${SANDBOX_WEBHOOK_SECRET:-sandbox-webhook-secret}"
+SANDBOX_SECRET="${SANDBOX_WEBHOOK_SECRET:-}"
+if [ -z "$SANDBOX_SECRET" ] && [ -f .env ]; then
+  SANDBOX_SECRET=$(grep '^SANDBOX_WEBHOOK_SECRET=' .env | head -n1 | cut -d= -f2- || true)
+fi
+SANDBOX_SECRET="${SANDBOX_SECRET:-sandbox-webhook-secret}"
 
-green() { printf '\033[32mÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ %s\033[0m\n' "$1"; }
-fail()  { printf '\033[31mÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â %s\033[0m\n' "$1"; exit 1; }
-
+green() { printf '\033[32m✓ %s\033[0m\n' "$1"; }
+fail()  { printf '\033[31m✗ %s\033[0m\n' "$1"; exit 1; }
 jqr() { jq -r "$1"; }
 
-echo "== 1. Register and verify an admin user"
-ADMIN_EMAIL="admin+$(date +%s)@payflow.local"
-curl -sf -X POST "$GATEWAY/api/v1/auth/register" \
-  -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"AdminPassw0rd123\",\"fullName\":\"Ops Admin\"}" \
-  >/dev/null || fail "registration failed"
-green "registered $ADMIN_EMAIL"
-
-echo "== 2. Create a merchant (admin API)"
+echo "== 1. Sign in with the seeded platform admin"
 TOKEN=$(curl -sf -X POST "$GATEWAY/api/v1/auth/login" \
   -H 'Content-Type: application/json' \
   -d "{\"email\":\"${SEED_ADMIN_EMAIL:-admin@payflow.local}\",\"password\":\"${SEED_ADMIN_PASSWORD:?set SEED_ADMIN_PASSWORD}\"}" \
   | jqr '.accessToken')
-[ "$TOKEN" != "null" ] || fail "admin login failed"
+[ -n "$TOKEN" ] && [ "$TOKEN" != "null" ] || fail "admin login failed"
+green "platform admin signed in"
 
-MERCHANT=$(curl -sf -X POST "$GATEWAY/api/v1/merchants" \
+echo "== 2. Exercise platform-admin merchant lifecycle"
+ADMIN_MERCHANT=$(curl -sf -X POST "$GATEWAY/api/v1/merchants" \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  -d '{"businessName":"Smoke Test Co","email":"merchant+'"$(date +%s)"'@test.local",
+  -d '{"businessName":"Admin Smoke Co","email":"admin-merchant+'"$(date +%s)"'@test.local",
        "country":"IN","defaultCurrency":"INR"}')
-MERCHANT_ID=$(echo "$MERCHANT" | jqr '.id')
-green "merchant $MERCHANT_ID created"
+ADMIN_MERCHANT_ID=$(echo "$ADMIN_MERCHANT" | jqr '.id')
+[ -n "$ADMIN_MERCHANT_ID" ] && [ "$ADMIN_MERCHANT_ID" != "null" ] || fail "admin merchant creation failed"
 
-curl -sf -X PATCH "$GATEWAY/api/v1/merchants/$MERCHANT_ID/status" \
+curl -sf -X PATCH "$GATEWAY/api/v1/merchants/$ADMIN_MERCHANT_ID/status" \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"status":"ACTIVE","reason":"smoke test"}' >/dev/null
-green "merchant activated"
+green "platform admin created and activated merchant $ADMIN_MERCHANT_ID"
 
-echo "== 3. Create a merchant owner and sign them in"
+echo "== 3. Self-register a merchant owner safely"
 OWNER_EMAIL="owner+$(date +%s)@test.local"
-curl -sf -X POST "$GATEWAY/api/v1/auth/register" \
+OWNER_PASSWORD="OwnerPassw0rd123"
+OWNER=$(curl -sf -X POST "$GATEWAY/api/v1/auth/register" \
   -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$OWNER_EMAIL\",\"password\":\"OwnerPassw0rd123\",
-       \"fullName\":\"Merchant Owner\",\"merchantId\":\"$MERCHANT_ID\",
-       \"role\":\"MERCHANT_OWNER\"}" >/dev/null || fail "owner registration failed"
+  -d "{\"email\":\"$OWNER_EMAIL\",\"password\":\"$OWNER_PASSWORD\",\"fullName\":\"Smoke Test Owner\",\"businessName\":\"Smoke Test Merchant\"}") \
+  || fail "owner registration failed"
+MERCHANT_ID=$(echo "$OWNER" | jqr '.merchantId')
+[ -n "$MERCHANT_ID" ] && [ "$MERCHANT_ID" != "null" ] || fail "self-registration did not create a merchant"
 
-VERIFY_TOKEN=$(docker compose exec -T postgres psql -qtAX -U "${POSTGRES_USER:-payflow}" -d auth_db \
-  -c "SELECT payload->'data'->'variables'->>'token' FROM outbox_events
-      WHERE event_type='notification.requested'
-        AND payload->'data'->>'recipient'='$OWNER_EMAIL'
-      ORDER BY created_at DESC LIMIT 1" | tr -d '[:space:]')
-[ -n "$VERIFY_TOKEN" ] || fail "could not read the verification token"
-
-curl -sf -X POST "$GATEWAY/api/v1/auth/verify-email/$VERIFY_TOKEN" >/dev/null \
-  || fail "email verification failed"
-
-MERCHANT_TOKEN=$(curl -sf -X POST "$GATEWAY/api/v1/auth/login" \
+if ! MERCHANT_LOGIN=$(curl -sf -X POST "$GATEWAY/api/v1/auth/login" \
   -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$OWNER_EMAIL\",\"password\":\"OwnerPassw0rd123\"}" | jqr '.accessToken')
-[ "$MERCHANT_TOKEN" != "null" ] || fail "merchant owner login failed"
-green "merchant owner signed in"
+  -d "{\"email\":\"$OWNER_EMAIL\",\"password\":\"$OWNER_PASSWORD\"}"); then
+  echo "Account is not auto-verified; reading local verification token for smoke test"
+  VERIFY_TOKEN=$(docker compose exec -T postgres psql -qtAX -U "${POSTGRES_USER:-payflow}" -d auth_db \
+    -c "SELECT payload->'data'->'variables'->>'token' FROM outbox_events
+        WHERE event_type='notification.requested'
+          AND payload->'data'->>'recipient'='$OWNER_EMAIL'
+        ORDER BY created_at DESC LIMIT 1" | tr -d '[:space:]')
+  [ -n "$VERIFY_TOKEN" ] || fail "could not read the verification token"
+  curl -sf -X POST "$GATEWAY/api/v1/auth/verify-email/$VERIFY_TOKEN" >/dev/null \
+    || fail "email verification failed"
+  MERCHANT_LOGIN=$(curl -sf -X POST "$GATEWAY/api/v1/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$OWNER_EMAIL\",\"password\":\"$OWNER_PASSWORD\"}") \
+    || fail "merchant owner login failed after verification"
+fi
+
+MERCHANT_TOKEN=$(echo "$MERCHANT_LOGIN" | jqr '.accessToken')
+[ -n "$MERCHANT_TOKEN" ] && [ "$MERCHANT_TOKEN" != "null" ] || fail "merchant owner login failed"
+green "merchant owner signed in for merchant $MERCHANT_ID"
 
 echo "== 4. Issue a TEST secret key"
 SECRET_KEY=$(curl -sf -X POST "$GATEWAY/api/v1/merchants/me/api-keys" \
@@ -71,38 +76,38 @@ SECRET_KEY=$(curl -sf -X POST "$GATEWAY/api/v1/merchants/me/api-keys" \
 green "issued ${SECRET_KEY:0:12}..."
 
 echo "== 5. Create a payment"
-IDEM_KEY="smoke-$(date +%s)"
+NOW=$(date +%s)
+IDEM_KEY="smoke-$NOW"
+PAYMENT_BODY='{"amount":1000.00,"currency":"INR","merchantOrderId":"order-'"$NOW"'","description":"Smoke test payment","paymentMethod":"CARD"}'
 PAYMENT=$(curl -sf -X POST "$GATEWAY/api/v1/payments" \
   -H "Authorization: Bearer $SECRET_KEY" \
   -H "Idempotency-Key: $IDEM_KEY" \
   -H 'Content-Type: application/json' \
-  -d '{"amount":1000.00,"currency":"INR","merchantOrderId":"order-'"$(date +%s)"'",
-       "description":"Smoke test payment","paymentMethod":"CARD"}')
+  -d "$PAYMENT_BODY") || fail "payment creation failed"
 PAYMENT_REF=$(echo "$PAYMENT" | jqr '.paymentReference')
-green "created $PAYMENT_REF (status $(echo "$PAYMENT" | jqr '.status'))"
+PROVIDER_PAYMENT_ID=$(echo "$PAYMENT" | jqr '.providerPaymentId')
+[ -n "$PAYMENT_REF" ] && [ "$PAYMENT_REF" != "null" ] || fail "missing payment reference"
+[ -n "$PROVIDER_PAYMENT_ID" ] && [ "$PROVIDER_PAYMENT_ID" != "null" ] || fail "missing provider payment id"
+green "created $PAYMENT_REF (provider payment $PROVIDER_PAYMENT_ID)"
 
-echo "== 6. Replay the SAME request with the SAME Idempotency-Key"
+echo "== 6. Replay the exact SAME request with the SAME Idempotency-Key"
 REPLAY=$(curl -sf -X POST "$GATEWAY/api/v1/payments" \
   -H "Authorization: Bearer $SECRET_KEY" \
   -H "Idempotency-Key: $IDEM_KEY" \
   -H 'Content-Type: application/json' \
-  -d '{"amount":1000.00,"currency":"INR","merchantOrderId":"order-same",
-       "description":"Smoke test payment","paymentMethod":"CARD"}' || true)
-REPLAY_REF=$(echo "$REPLAY" | jqr '.paymentReference // empty')
+  -d "$PAYMENT_BODY") || fail "idempotent replay failed"
+REPLAY_REF=$(echo "$REPLAY" | jqr '.paymentReference')
 [ "$REPLAY_REF" = "$PAYMENT_REF" ] \
-  && green "replay returned the ORIGINAL payment - no double charge" \
+  && green "replay returned the original payment - no duplicate charge" \
   || fail "idempotency broken: replay produced $REPLAY_REF"
 
-echo "== 7. Deliver a signed provider webhook"
-PROVIDER_PAYMENT_ID=$(curl -sf "$GATEWAY/api/v1/payments/$PAYMENT_REF" \
-  -H "Authorization: Bearer $SECRET_KEY" | jqr '.provider')
+echo "== 7. Deliver a signed sandbox provider webhook"
 TS=$(date +%s)
 EVENT_ID="evt_smoke_$TS"
 BODY="{\"eventId\":\"$EVENT_ID\",\"type\":\"payment.captured\",\"providerPaymentId\":\"$PROVIDER_PAYMENT_ID\",\"status\":\"CAPTURED\",\"paymentMethod\":\"CARD\",\"cardLast4\":\"4242\"}"
 SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$SANDBOX_SECRET" -r | cut -d' ' -f1)
 
 curl -sf -X POST "$PROVIDER/internal/webhooks/providers/sandbox" \
-  -H "X-Internal-Token: $INTERNAL_TOKEN" \
   -H "X-PayFlow-Sandbox-Signature: $SIG" \
   -H "X-PayFlow-Timestamp: $TS" \
   -H 'Content-Type: application/json' \
@@ -111,17 +116,17 @@ green "webhook accepted"
 
 echo "== 8. Deliver the SAME webhook again"
 DUP=$(curl -sf -X POST "$PROVIDER/internal/webhooks/providers/sandbox" \
-  -H "X-Internal-Token: $INTERNAL_TOKEN" \
   -H "X-PayFlow-Sandbox-Signature: $SIG" \
   -H "X-PayFlow-Timestamp: $TS" \
   -H 'Content-Type: application/json' \
   -d "$BODY" | jqr '.status')
 [ "$DUP" = "duplicate" ] \
-  && green "duplicate event deduplicated" \
-  || fail "expected 'duplicate', got '$DUP'"
+  && green "duplicate provider event deduplicated" \
+  || fail "expected duplicate webhook acknowledgement, got '$DUP'"
 
-echo "== 9. Wait for the event to flow through Kafka"
-for i in $(seq 1 20); do
+echo "== 9. Wait for Kafka to update the payment"
+STATUS=""
+for _ in $(seq 1 20); do
   STATUS=$(curl -sf "$GATEWAY/api/v1/payments/$PAYMENT_REF" \
     -H "Authorization: Bearer $SECRET_KEY" | jqr '.status')
   [ "$STATUS" = "CAPTURED" ] && break

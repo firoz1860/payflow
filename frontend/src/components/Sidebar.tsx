@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuthStore } from '../store/auth';
+import { logout as logoutSession } from '../services/authService';
 import { cn } from '../lib/utils';
 
 const paymentNav = [
@@ -32,10 +33,10 @@ const paymentNav = [
 ];
 
 const platformNav = [
-  { to: '/ledger', label: 'Ledger', icon: BookOpen, perm: null },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3, perm: null },
+  { to: '/ledger', label: 'Ledger', icon: BookOpen, perm: 'ledger:read' },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3, perm: 'payments:read' },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound, perm: 'api_keys:manage' },
-  { to: '/webhooks', label: 'Webhooks', icon: Webhook, perm: null },
+  { to: '/webhooks', label: 'Webhooks', icon: Webhook, perm: 'webhooks:manage' },
   { to: '/developers', label: 'Developers', icon: Code2, perm: null },
   { to: '/settings', label: 'Settings', icon: Settings, perm: 'merchant:read' },
 ];
@@ -47,13 +48,21 @@ const adminNav = [
 ];
 
 export function Sidebar() {
-  const { user, logout, hasPermission, isAdmin } = useAuthStore();
+  const { user, refreshToken, logout: clearAuth, hasPermission, isAdmin } = useAuthStore();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      if (refreshToken) {
+        await logoutSession(refreshToken);
+      }
+    } catch {
+      // Local sign-out must still complete if the network/session is already gone.
+    } finally {
+      clearAuth();
+      navigate('/login');
+    }
   };
 
   const visiblePayments = paymentNav.filter((item) => !item.perm || hasPermission(item.perm));

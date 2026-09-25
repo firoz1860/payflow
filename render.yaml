@@ -1,0 +1,325 @@
+# PayFlow backend blueprint for Render.
+# Frontend is deployed separately on Vercel from ./frontend.
+# Only api-gateway is public. Core microservices and Kafka stay on Render's private network.
+
+services:
+  - type: keyvalue
+    name: payflow-redis
+    plan: free
+    region: singapore
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
+  - type: pserv
+    name: payflow-kafka
+    runtime: docker
+    plan: 0.5c-512mb
+    region: singapore
+    dockerContext: .
+    dockerfilePath: ./infrastructure/render/kafka/Dockerfile
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT
+        value: "9092"
+      - key: KAFKA_ADVERTISED_HOST
+        fromService:
+          type: pserv
+          name: payflow-kafka
+          property: host
+      - key: KAFKA_CLUSTER_ID
+        value: MkU3OEVBNTcwNTJENDM2Qk
+    disk:
+      name: kafka-data
+      mountPath: /var/lib/kafka/data
+      sizeGB: 1
+
+  - type: pserv
+    name: payflow-auth
+    runtime: docker
+    plan: 0.5c-512mb
+    region: singapore
+    dockerContext: .
+    dockerfilePath: ./auth-service/Dockerfile
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT
+        value: "8081"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: payflow-db
+          property: connectionString
+      - key: PAYFLOW_DB_SCHEMA
+        value: auth
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"
+      - key: SPRING_DATA_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: payflow-redis
+          property: connectionString
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        fromService:
+          type: pserv
+          name: payflow-kafka
+          property: hostport
+      - key: JWT_SECRET
+        sync: false
+      - key: PAYFLOW_INTERNAL_TOKEN
+        generateValue: true
+      - key: MERCHANT_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-merchant
+          property: hostport
+      - key: PAYFLOW_ADMIN_EMAIL
+        value: admin@payflow.local
+      - key: PAYFLOW_ADMIN_PASSWORD
+        sync: false
+      - key: PAYFLOW_AUTO_VERIFY_EMAIL
+        value: "true"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k -XX:MaxMetaspaceSize=140m -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
+
+  - type: pserv
+    name: payflow-merchant
+    runtime: docker
+    plan: 0.5c-512mb
+    region: singapore
+    dockerContext: .
+    dockerfilePath: ./merchant-service/Dockerfile
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT
+        value: "8082"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: payflow-db
+          property: connectionString
+      - key: PAYFLOW_DB_SCHEMA
+        value: merchant
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"
+      - key: SPRING_DATA_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: payflow-redis
+          property: connectionString
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        fromService:
+          type: pserv
+          name: payflow-kafka
+          property: hostport
+      - key: JWT_SECRET
+        fromService:
+          type: pserv
+          name: payflow-auth
+          envVarKey: JWT_SECRET
+      - key: PAYFLOW_INTERNAL_TOKEN
+        fromService:
+          type: pserv
+          name: payflow-auth
+          envVarKey: PAYFLOW_INTERNAL_TOKEN
+      - key: API_KEY_PEPPER
+        generateValue: true
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k -XX:MaxMetaspaceSize=140m -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
+
+  - type: pserv
+    name: payflow-provider
+    runtime: docker
+    plan: 0.5c-512mb
+    region: singapore
+    dockerContext: .
+    dockerfilePath: ./provider-service/Dockerfile
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT
+        value: "8086"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: payflow-db
+          property: connectionString
+      - key: PAYFLOW_DB_SCHEMA
+        value: provider
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        fromService:
+          type: pserv
+          name: payflow-kafka
+          property: hostport
+      - key: PAYFLOW_INTERNAL_TOKEN
+        fromService:
+          type: pserv
+          name: payflow-auth
+          envVarKey: PAYFLOW_INTERNAL_TOKEN
+      - key: PAYFLOW_PROVIDER_DEFAULT
+        value: sandbox
+      - key: SANDBOX_WEBHOOK_SECRET
+        generateValue: true
+      - key: SANDBOX_AUTO_CAPTURE
+        value: "true"
+      - key: SANDBOX_AUTO_CAPTURE_DELAY_MS
+        value: "5000"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k -XX:MaxMetaspaceSize=140m -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
+
+  - type: pserv
+    name: payflow-payment
+    runtime: docker
+    plan: 0.5c-512mb
+    region: singapore
+    dockerContext: .
+    dockerfilePath: ./payment-service/Dockerfile
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT
+        value: "8085"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: payflow-db
+          property: connectionString
+      - key: PAYFLOW_DB_SCHEMA
+        value: payment
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"
+      - key: SPRING_DATA_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: payflow-redis
+          property: connectionString
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        fromService:
+          type: pserv
+          name: payflow-kafka
+          property: hostport
+      - key: JWT_SECRET
+        fromService:
+          type: pserv
+          name: payflow-auth
+          envVarKey: JWT_SECRET
+      - key: PAYFLOW_INTERNAL_TOKEN
+        fromService:
+          type: pserv
+          name: payflow-auth
+          envVarKey: PAYFLOW_INTERNAL_TOKEN
+      - key: MERCHANT_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-merchant
+          property: hostport
+      - key: PROVIDER_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-provider
+          property: hostport
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k -XX:MaxMetaspaceSize=140m -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
+
+  - type: pserv
+    name: payflow-ledger
+    runtime: docker
+    plan: 0.5c-512mb
+    region: singapore
+    dockerContext: .
+    dockerfilePath: ./ledger-service/Dockerfile
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT
+        value: "8088"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: payflow-db
+          property: connectionString
+      - key: PAYFLOW_DB_SCHEMA
+        value: ledger
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        fromService:
+          type: pserv
+          name: payflow-kafka
+          property: hostport
+      - key: PAYFLOW_INTERNAL_TOKEN
+        fromService:
+          type: pserv
+          name: payflow-auth
+          envVarKey: PAYFLOW_INTERNAL_TOKEN
+      - key: JWT_SECRET
+        fromService:
+          type: pserv
+          name: payflow-auth
+          envVarKey: JWT_SECRET
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k -XX:MaxMetaspaceSize=140m -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
+
+  - type: web
+    name: payflow-api-gateway
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerContext: .
+    dockerfilePath: ./api-gateway/Dockerfile
+    autoDeployTrigger: checksPass
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: SPRING_DATA_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: payflow-redis
+          property: connectionString
+      - key: JWT_SECRET
+        fromService:
+          type: pserv
+          name: payflow-auth
+          envVarKey: JWT_SECRET
+      - key: AUTH_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-auth
+          property: hostport
+      - key: MERCHANT_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-merchant
+          property: hostport
+      - key: PAYMENT_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-payment
+          property: hostport
+      - key: PROVIDER_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-provider
+          property: hostport
+      - key: LEDGER_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-ledger
+          property: hostport
+      - key: PAYFLOW_CORS_ORIGINS
+        sync: false
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k -XX:MaxMetaspaceSize=140m -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
+
+databases:
+  - name: payflow-db
+    plan: free
+    region: singapore
+    postgresMajorVersion: "16"
+    databaseName: payflow
+    user: payflow
+    ipAllowList: []

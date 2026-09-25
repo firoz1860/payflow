@@ -88,6 +88,7 @@ export interface Payment {
   environment: string;
   description: string | null;
   provider: string | null;
+  providerPaymentId: string | null;
   checkoutUrl: string | null;
   qrCode: QrCode | null;
   failureCode: string | null;
@@ -97,6 +98,35 @@ export interface Payment {
   createdAt: string;
   updatedAt: string;
   expiresAt: string | null;
+}
+
+export interface LedgerAccount {
+  accountId: string;
+  accountType: string;
+  currency: string;
+  balance: number;
+}
+
+export interface LedgerPosting {
+  id: string;
+  sourceType: string;
+  sourceId: string;
+  currency: string;
+  totalDebit: number;
+  totalCredit: number;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface LedgerEntry {
+  id: string;
+  postingId: string;
+  accountId: string;
+  entryType: 'DEBIT' | 'CREDIT';
+  amount: number;
+  currency: string;
+  description: string | null;
+  createdAt: string;
 }
 
 export interface PageResponse<T> {

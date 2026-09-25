@@ -229,6 +229,7 @@ export function CreatePaymentPage() {
               <dl className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <Info label="Order ID" value={result.merchantOrderId || '—'} />
                 <Info label="Provider" value={result.provider || '—'} />
+                <Info label="Provider Payment ID" value={result.providerPaymentId || '—'} />
                 <Info label="Environment" value={result.environment || '—'} />
                 <Info label="Description" value={result.description || '—'} />
               </dl>
