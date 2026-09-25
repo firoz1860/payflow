@@ -117,3 +117,33 @@ export interface ApiError {
 export type PaymentMethod = 'CARD' | 'UPI' | 'QR' | 'NET_BANKING' | 'WALLET';
 export type RoleName = 'PAYFLOW_ADMIN' | 'MERCHANT_OWNER' | 'MERCHANT_DEVELOPER' | 'MERCHANT_FINANCE' | 'MERCHANT_SUPPORT';
 export type MerchantStatus = 'ACTIVE' | 'SUSPENDED' | 'BLOCKED' | 'PENDING';
+
+
+export interface LedgerAccount {
+  accountId: string;
+  accountType: string;
+  currency: string;
+  balance: number;
+}
+
+export interface LedgerPosting {
+  id: string;
+  sourceType: string;
+  sourceId: string;
+  currency: string;
+  totalDebit: number;
+  totalCredit: number;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface LedgerEntry {
+  id: string;
+  postingId: string;
+  accountId: string;
+  entryType: 'DEBIT' | 'CREDIT';
+  amount: number;
+  currency: string;
+  description: string | null;
+  createdAt: string;
+}
