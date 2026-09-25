@@ -95,7 +95,7 @@ REPLAY_REF=$(echo "$REPLAY" | jqr '.paymentReference // empty')
 
 echo "== 7. Deliver a signed provider webhook"
 PROVIDER_PAYMENT_ID=$(curl -sf "$GATEWAY/api/v1/payments/$PAYMENT_REF" \
-  -H "Authorization: Bearer $SECRET_KEY" | jqr '.provider')
+  -H "Authorization: Bearer $SECRET_KEY" | jqr '.providerPaymentId')
 TS=$(date +%s)
 EVENT_ID="evt_smoke_$TS"
 BODY="{\"eventId\":\"$EVENT_ID\",\"type\":\"payment.captured\",\"providerPaymentId\":\"$PROVIDER_PAYMENT_ID\",\"status\":\"CAPTURED\",\"paymentMethod\":\"CARD\",\"cardLast4\":\"4242\"}"
