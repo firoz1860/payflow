@@ -27,7 +27,7 @@ public class PaymentMapper {
                 payment.getPaymentReference(), payment.getMerchantOrderId(), payment.getAmount(),
                 payment.getCurrency(), payment.getRefundedAmount(), payment.refundableAmount(),
                 payment.getStatus().name(), payment.getEnvironment().name(), payment.getDescription(),
-                payment.getProvider(), payment.getCheckoutUrl(), qrCode, payment.getFailureCode(),
+                payment.getProvider(), payment.getProviderPaymentId(), payment.getCheckoutUrl(), qrCode, payment.getFailureCode(),
                 payment.getFailureMessage(), readMetadata(payment.getMetadata()), attemptResponses,
                 payment.getCreatedAt(), payment.getUpdatedAt(), payment.getExpiresAt());
     }
