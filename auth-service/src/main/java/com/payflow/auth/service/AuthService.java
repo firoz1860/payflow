@@ -191,9 +191,20 @@ public class AuthService {
         recordAudit(user.getId(), "PASSWORD_RESET_COMPLETED", user.getId().toString());
     }
     @Transactional
-    public AuthDtos.UserResponse assignRole(UUID actorId, UUID userId, RoleName roleName) {
+    public AuthDtos.UserResponse assignRole(UUID actorId, UUID actorMerchantId,
+                                             boolean platformAdmin,
+                                             UUID userId, RoleName roleName) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> PayFlowException.notFound("User not found"));
+        if (!platformAdmin) {
+            if (actorMerchantId == null || user.getMerchantId() == null
+                    || !actorMerchantId.equals(user.getMerchantId())) {
+                throw PayFlowException.forbidden("Team roles can only be managed within your merchant");
+            }
+            if (roleName == RoleName.PAYFLOW_ADMIN) {
+                throw PayFlowException.forbidden("PAYFLOW_ADMIN can only be assigned by a platform admin");
+            }
+        }
         user.addRole(loadRole(roleName));
         recordAudit(actorId, "ROLE_ASSIGNED", userId.toString());
         return toResponse(user);
