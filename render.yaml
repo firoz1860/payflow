@@ -151,6 +151,10 @@ services:
         value: sandbox
       - key: SANDBOX_WEBHOOK_SECRET
         generateValue: true
+      - key: SANDBOX_AUTO_CAPTURE
+        value: "true"
+      - key: SANDBOX_AUTO_CAPTURE_DELAY_MS
+        value: "5000"
       - key: JAVA_TOOL_OPTIONS
         value: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k -XX:MaxMetaspaceSize=140m -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
 
