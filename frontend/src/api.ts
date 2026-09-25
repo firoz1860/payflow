@@ -6,7 +6,7 @@ import type { ApiError } from './types';
 // - Production (e.g. Vercel): set VITE_API_URL to the deployed gateway, incl. the
 //   `/api/v1` suffix, e.g. https://payflow-gateway.onrender.com/api/v1
 // - Local dev: leave VITE_API_URL unset -> falls back to '/api/v1', which the Vite
-//   dev server proxies to http://localhost:8080 (see vite.config.ts).
+//   dev server proxies to http://localhost:8000 (see vite.config.ts).
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL?.replace(/\/+$/, '') || '/api/v1';
 
