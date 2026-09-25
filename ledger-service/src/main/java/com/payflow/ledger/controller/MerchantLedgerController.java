@@ -122,17 +122,9 @@ public class MerchantLedgerController {
     }
 
     private BigDecimal balanceOf(LedgerAccount account) {
-        BigDecimal debit = BigDecimal.ZERO;
-        BigDecimal credit = BigDecimal.ZERO;
-        for (LedgerEntry entry : entryRepository.findByAccountId(account.getId())) {
-            if (entry.getEntryType() == LedgerEntry.EntryType.DEBIT) {
-                debit = debit.add(entry.getAmount());
-            } else {
-                credit = credit.add(entry.getAmount());
-            }
-        }
+        BigDecimal debitMinusCredit = entryRepository.debitMinusCredit(account.getId());
         return account.getAccountType().normalBalance() == LedgerAccount.AccountType.Normal.DEBIT
-                ? debit.subtract(credit)
-                : credit.subtract(debit);
+                ? debitMinusCredit
+                : debitMinusCredit.negate();
     }
 }
