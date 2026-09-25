@@ -41,7 +41,7 @@ OWNER_EMAIL="owner+$(date +%s)@test.local"
 OWNER_PASSWORD="OwnerPassw0rd123"
 OWNER=$(curl -sf -X POST "$GATEWAY/api/v1/auth/register" \
   -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$OWNER_EMAIL\",\"password\":\"$OWNER_PASSWORD\",\"fullName\":\"Smoke Test Merchant\"}") \
+  -d "{\"email\":\"$OWNER_EMAIL\",\"password\":\"$OWNER_PASSWORD\",\"fullName\":\"Smoke Test Owner\",\"businessName\":\"Smoke Test Merchant\"}") \
   || fail "owner registration failed"
 MERCHANT_ID=$(echo "$OWNER" | jqr '.merchantId')
 [ -n "$MERCHANT_ID" ] && [ "$MERCHANT_ID" != "null" ] || fail "self-registration did not create a merchant"
