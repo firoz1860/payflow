@@ -100,6 +100,35 @@ export interface Payment {
   expiresAt: string | null;
 }
 
+export interface LedgerAccount {
+  accountId: string;
+  accountType: string;
+  currency: string;
+  balance: number;
+}
+
+export interface LedgerPosting {
+  id: string;
+  sourceType: string;
+  sourceId: string;
+  currency: string;
+  totalDebit: number;
+  totalCredit: number;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface LedgerEntry {
+  id: string;
+  postingId: string;
+  accountId: string;
+  entryType: 'DEBIT' | 'CREDIT';
+  amount: number;
+  currency: string;
+  description: string | null;
+  createdAt: string;
+}
+
 export interface PageResponse<T> {
   data: T[];
   page: number;
