@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
+import { Topbar } from './Topbar';
 import { ToastContainer } from './Toast';
 import { PageTransition } from '../lib/motion';
 import { useLocation } from 'react-router-dom';
@@ -18,7 +19,8 @@ export function Layout({ children }: { children: ReactNode }) {
       <Sidebar />
 
       <main className="relative flex-1 overflow-x-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pt-16 lg:pt-8">
+        <Topbar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pt-6">
           <PageTransition key={location.pathname}>
             {children}
           </PageTransition>
