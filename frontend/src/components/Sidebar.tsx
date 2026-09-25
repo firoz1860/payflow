@@ -2,7 +2,8 @@ import { ReactNode, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, CreditCard, KeyRound, Building2, LogOut,
-  ShieldCheck, Receipt, ChevronLeft, Menu, X, Users,
+  ShieldCheck, Receipt, ChevronLeft, Menu, X, Users, BarChart3, Landmark,
+  Webhook, Activity, BookOpen, Settings,
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth';
 import { cn } from '../lib/utils';
@@ -13,6 +14,12 @@ const merchantNav = [
   { to: '/payments', label: 'Payments', icon: CreditCard, perm: 'payments:read' },
   { to: '/payments/create', label: 'Create Payment', icon: Receipt, perm: 'payments:create' },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound, perm: 'api_keys:manage' },
+  { to: '/webhooks', label: 'Webhooks', icon: Webhook, perm: 'webhooks:manage' },
+  { to: '/ledger', label: 'Ledger', icon: Landmark, perm: 'ledger:read' },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3, perm: 'payments:read' },
+  { to: '/monitoring', label: 'Monitoring', icon: Activity, perm: null },
+  { to: '/developers', label: 'Developers', icon: BookOpen, perm: null },
+  { to: '/settings', label: 'Settings', icon: Settings, perm: 'merchant:read' },
   { to: '/merchant', label: 'Merchant Profile', icon: Building2, perm: 'merchant:read' },
 ];
 
@@ -40,7 +47,7 @@ export function Sidebar() {
       {/* Mobile menu button */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-lg bg-white shadow-md border border-slate-200"
+        className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-xl bg-white/70 backdrop-blur-xl shadow-lg border border-white/70"
       >
         <Menu className="w-5 h-5 text-slate-700" />
       </button>
@@ -66,7 +73,7 @@ export function Sidebar() {
             animate={{ x: 0 }}
             exit={{ x: -300 }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed left-0 top-0 bottom-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col lg:hidden"
+            className="fixed left-0 top-0 bottom-0 z-50 w-64 bg-slate-950/88 backdrop-blur-2xl text-slate-300 flex flex-col border-r border-white/10 lg:hidden"
           >
             <SidebarContent
               user={user}
@@ -86,7 +93,7 @@ export function Sidebar() {
       <motion.aside
         animate={{ width: collapsed ? 64 : 256 }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="hidden lg:flex flex-col bg-slate-900 text-slate-300 h-screen sticky top-0 overflow-hidden"
+        className="hidden lg:flex flex-col bg-slate-950/88 backdrop-blur-2xl text-slate-300 h-screen sticky top-0 overflow-hidden border-r border-white/10 shadow-2xl shadow-slate-950/20"
       >
         <SidebarContent
           user={user}
