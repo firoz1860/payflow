@@ -74,9 +74,13 @@ spring:
                 redis-rate-limiter.replenishRate: 50
                 redis-rate-limiter.burstCapacity: 100
         - id: payment-service
-          uri: ${PAYMENT_SERVICE_URL:http://localhost:8085}
+          uri: ${PAYMENT_SERVICE_URL:http://${PAYMENT_SERVICE_HOSTPORT:localhost:8085}}
           predicates:
             - Path=/api/v1/payments/**
+        - id: provider-webhooks
+          uri: ${PROVIDER_SERVICE_URL:http://${PROVIDER_SERVICE_HOSTPORT:localhost:8086}}
+          predicates:
+            - Path=/api/v1/provider-webhooks/**
           filters:
             - name: RequestRateLimiter
               args:
