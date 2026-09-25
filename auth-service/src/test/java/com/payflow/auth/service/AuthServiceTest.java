@@ -1,4 +1,5 @@
 package com.payflow.auth.service;
+import com.payflow.auth.client.MerchantRegistrationClient;
 import com.payflow.auth.config.JwtProperties;
 import com.payflow.auth.domain.RefreshToken;
 import com.payflow.auth.domain.User;
@@ -41,6 +42,7 @@ class AuthServiceTest {
     @Mock private OneTimeTokenRepository oneTimeTokenRepository;
     @Mock private JwtService jwtService;
     @Mock private OutboxRecorder outbox;
+    @Mock private MerchantRegistrationClient merchantRegistrationClient;
     private AuthService authService;
     private PasswordEncoder passwordEncoder;
     private JwtProperties jwtProperties;
@@ -50,7 +52,8 @@ class AuthServiceTest {
         jwtProperties = new JwtProperties();
         jwtProperties.setSecret("x".repeat(64));
         authService = new AuthService(userRepository, roleRepository, refreshTokenRepository,
-                oneTimeTokenRepository, passwordEncoder, jwtService, jwtProperties, outbox);
+                oneTimeTokenRepository, passwordEncoder, jwtService, jwtProperties, outbox,
+                merchantRegistrationClient, false);
     }
     private User activeUser(String password) {
         User user = new User("owner@test.local", passwordEncoder.encode(password),
