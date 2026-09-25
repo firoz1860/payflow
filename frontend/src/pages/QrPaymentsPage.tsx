@@ -231,6 +231,7 @@ export function QrPaymentsPage() {
                 <Row label="Payment ID" value={payment.paymentReference} mono />
                 <Row label="Order ID" value={payment.merchantOrderId || '—'} mono />
                 <Row label="Provider" value={payment.provider || 'Waiting'} />
+                <Row label="Provider Payment ID" value={payment.providerPaymentId || 'Waiting'} mono />
                 <Row label="Environment" value={payment.environment || '—'} />
               </dl>
             </div>
