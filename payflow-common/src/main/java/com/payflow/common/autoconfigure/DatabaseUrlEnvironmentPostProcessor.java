@@ -49,12 +49,25 @@ public final class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPos
         String database = uri.getPath().substring(1);
         StringBuilder jdbc = new StringBuilder("jdbc:postgresql://")
                 .append(uri.getHost()).append(':').append(port).append('/').append(database);
-        if (uri.getRawQuery() != null && !uri.getRawQuery().isBlank()) {
-            jdbc.append('?').append(uri.getRawQuery());
+        String schema = environment.getProperty("PAYFLOW_DB_SCHEMA");
+        String query = uri.getRawQuery();
+        if (query != null && !query.isBlank()) {
+            jdbc.append('?').append(query);
+        }
+        if (schema != null && !schema.isBlank()) {
+            jdbc.append(query == null || query.isBlank() ? '?' : '&')
+                    .append("currentSchema=").append(schema.trim());
         }
 
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("spring.datasource.url", jdbc.toString());
+        if (schema != null && !schema.isBlank()) {
+            String normalizedSchema = schema.trim();
+            properties.put("spring.flyway.schemas", normalizedSchema);
+            properties.put("spring.flyway.default-schema", normalizedSchema);
+            properties.put("spring.flyway.create-schemas", "true");
+            properties.put("spring.jpa.properties.hibernate.default_schema", normalizedSchema);
+        }
 
         String userInfo = uri.getRawUserInfo();
         if (userInfo != null && !userInfo.isBlank()) {
