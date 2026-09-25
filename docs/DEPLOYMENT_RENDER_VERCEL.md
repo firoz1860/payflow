@@ -13,6 +13,7 @@ Render: payflow-api-gateway
         +--> payflow-payment
                |
                +--> payflow-provider
+        +--> payflow-ledger (read-only merchant API)
         +--> Kafka --> payflow-ledger
         |
         +--> Render Postgres
@@ -43,7 +44,7 @@ Only the API Gateway should be public. Auth, Merchant, Payment, Provider, Ledger
 | Admin merchant status/pricing/live mode | admin detail | Merchant Service admin endpoints | Connected |
 | Admin role assignment | roles page | Auth Service role endpoint | Connected; user UUID must currently be entered manually |
 | Analytics | analytics page | calculated from real Payment API data | Connected |
-| Ledger screen | ledger page | merchant-safe view from captured payments | Connected; internal ledger mutation APIs intentionally stay private |
+| Ledger screen | ledger + posting detail pages | `GET /api/v1/ledger/accounts`, `/postings`, and tenant-scoped posting entries | Connected read-only; ledger mutation APIs remain private |
 | Monitoring | monitoring page | public Gateway health endpoint | Connected for gateway health |
 | Provider webhooks | external provider -> Gateway -> Provider | `/api/v1/provider-webhooks/{provider}` | Connected and signature-verified |
 | Merchant webhook management | webhooks page | reserved `/api/v1/webhook-endpoints/**` route | Backend service is not in the current core; page reports unavailable instead of showing fake data |
