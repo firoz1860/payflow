@@ -255,6 +255,11 @@ services:
           type: pserv
           name: payflow-auth
           envVarKey: PAYFLOW_INTERNAL_TOKEN
+      - key: JWT_SECRET
+        fromService:
+          type: pserv
+          name: payflow-auth
+          envVarKey: JWT_SECRET
       - key: JAVA_TOOL_OPTIONS
         value: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k -XX:MaxMetaspaceSize=140m -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
 
@@ -299,6 +304,11 @@ services:
         fromService:
           type: pserv
           name: payflow-provider
+          property: hostport
+      - key: LEDGER_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-ledger
           property: hostport
       - key: PAYFLOW_CORS_ORIGINS
         sync: false
