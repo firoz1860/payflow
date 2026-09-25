@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 @RestController
-@RequestMapping("/internal/webhooks/providers")
+@RequestMapping({"/internal/webhooks/providers", "/api/v1/provider-webhooks"})
 @Hidden
 public class ProviderWebhookController {
     private static final Logger log = LoggerFactory.getLogger(ProviderWebhookController.class);
