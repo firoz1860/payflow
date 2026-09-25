@@ -33,10 +33,10 @@ const paymentNav = [
 ];
 
 const platformNav = [
-  { to: '/ledger', label: 'Ledger', icon: BookOpen, perm: null },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3, perm: null },
+  { to: '/ledger', label: 'Ledger', icon: BookOpen, perm: 'payments:read' },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3, perm: 'payments:read' },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound, perm: 'api_keys:manage' },
-  { to: '/webhooks', label: 'Webhooks', icon: Webhook, perm: null },
+  { to: '/webhooks', label: 'Webhooks', icon: Webhook, perm: 'webhooks:manage' },
   { to: '/developers', label: 'Developers', icon: Code2, perm: null },
   { to: '/settings', label: 'Settings', icon: Settings, perm: 'merchant:read' },
 ];
