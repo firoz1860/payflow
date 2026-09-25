@@ -38,6 +38,7 @@ public final class PaymentDtos {
             String environment,
             String description,
             String provider,
+            String providerPaymentId,
             String checkoutUrl,
             QrCode qrCode,
             String failureCode,
