@@ -33,7 +33,7 @@ const paymentNav = [
 ];
 
 const platformNav = [
-  { to: '/ledger', label: 'Ledger', icon: BookOpen, perm: 'payments:read' },
+  { to: '/ledger', label: 'Ledger', icon: BookOpen, perm: 'ledger:read' },
   { to: '/analytics', label: 'Analytics', icon: BarChart3, perm: 'payments:read' },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound, perm: 'api_keys:manage' },
   { to: '/webhooks', label: 'Webhooks', icon: Webhook, perm: 'webhooks:manage' },
