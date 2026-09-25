@@ -132,6 +132,44 @@ class AuthServiceTest {
                 .hasMessageContaining("cannot be self-assigned");
         verify(userRepository, never()).save(any());
     }
+    @Test
+    @DisplayName("a merchant team manager cannot grant PAYFLOW_ADMIN")
+    void merchantTeamManagerCannotGrantPlatformAdmin() {
+        UUID merchantId = UUID.randomUUID();
+        User target = new User("member@test.local", passwordEncoder.encode("CorrectPassw0rd"),
+                "Member", merchantId);
+        target.verifyEmail();
+        when(userRepository.findById(target.getId())).thenReturn(Optional.of(target));
+
+        assertThatThrownBy(() -> authService.assignRole(
+                UUID.randomUUID(), merchantId, false, target.getId(),
+                com.payflow.auth.domain.RoleName.PAYFLOW_ADMIN))
+                .isInstanceOf(PayFlowException.class)
+                .hasMessageContaining("platform admin");
+
+        verify(roleRepository, never())
+                .findByName(com.payflow.auth.domain.RoleName.PAYFLOW_ADMIN);
+    }
+
+    @Test
+    @DisplayName("a merchant team manager cannot modify a user from another merchant")
+    void merchantTeamManagerCannotCrossTenantBoundary() {
+        UUID actorMerchantId = UUID.randomUUID();
+        User target = new User("other@test.local", passwordEncoder.encode("CorrectPassw0rd"),
+                "Other Merchant User", UUID.randomUUID());
+        target.verifyEmail();
+        when(userRepository.findById(target.getId())).thenReturn(Optional.of(target));
+
+        assertThatThrownBy(() -> authService.assignRole(
+                UUID.randomUUID(), actorMerchantId, false, target.getId(),
+                com.payflow.auth.domain.RoleName.MERCHANT_DEVELOPER))
+                .isInstanceOf(PayFlowException.class)
+                .hasMessageContaining("within your merchant");
+
+        verify(roleRepository, never())
+                .findByName(com.payflow.auth.domain.RoleName.MERCHANT_DEVELOPER);
+    }
+
     private String catchMessage(Runnable action) {
         try {
             action.run();
