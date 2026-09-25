@@ -61,6 +61,9 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 payflow:
+  jwt:
+    secret: ${JWT_SECRET:${JWT_PUBLIC_SECRET:change-me-in-env-at-least-64-bytes-of-entropy-for-hs512-signing!}}
+    issuer: ${JWT_ISSUER:payflow-auth}
   internal:
     token: ${PAYFLOW_INTERNAL_TOKEN}
     response-timeout-ms: 3000
