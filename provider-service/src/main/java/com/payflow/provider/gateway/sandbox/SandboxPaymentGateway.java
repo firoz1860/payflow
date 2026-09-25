@@ -8,6 +8,7 @@ import com.payflow.provider.gateway.qr.QrCodeRenderer;
 import com.payflow.provider.gateway.qr.UpiIntent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -19,11 +20,13 @@ public class SandboxPaymentGateway implements PaymentGateway {
     private final ProviderProperties.Sandbox config;
     private final ObjectMapper objectMapper;
     private final QrCodeRenderer qrRenderer;
+    private final ApplicationEventPublisher events;
     public SandboxPaymentGateway(ProviderProperties properties, ObjectMapper objectMapper,
-                                 QrCodeRenderer qrRenderer) {
+                                 QrCodeRenderer qrRenderer, ApplicationEventPublisher events) {
         this.config = properties.getSandbox();
         this.objectMapper = objectMapper;
         this.qrRenderer = qrRenderer;
+        this.events = events;
     }
     @Override
     public String name() {
@@ -50,16 +53,25 @@ public class SandboxPaymentGateway implements PaymentGateway {
             String image = qrRenderer.toPngDataUri(intent);
             log.info("Sandbox created QR payment {} for {} {} (vpa {})",
                     providerPaymentId, command.amount(), command.currency(), config.getUpiVpa());
-            return new GatewayPayment(name(), providerPaymentId, GatewayStatus.PENDING,
+            GatewayPayment payment = new GatewayPayment(name(), providerPaymentId, GatewayStatus.PENDING,
                     command.amount(), command.currency(), null, null, null, null,
                     QR_METHOD, null, null, intent, image);
+            publishCreated(command, providerPaymentId);
+            return payment;
         }
         log.info("Sandbox created payment {} for {} {}",
                 providerPaymentId, command.amount(), command.currency());
-        return new GatewayPayment(name(), providerPaymentId, GatewayStatus.PENDING,
+        GatewayPayment payment = new GatewayPayment(name(), providerPaymentId, GatewayStatus.PENDING,
                 command.amount(), command.currency(),
-                config.getCheckoutUrl() + "?payment=" + providerPaymentId,
+                config.isAutoCapture() ? null : config.getCheckoutUrl() + "?payment=" + providerPaymentId,
                 null, null, null, command.paymentMethod(), null, null, null, null);
+        publishCreated(command, providerPaymentId);
+        return payment;
+    }
+
+    private void publishCreated(CreateGatewayPaymentCommand command, String providerPaymentId) {
+        events.publishEvent(new SandboxPaymentCreatedEvent(
+                providerPaymentId, command.amount(), command.paymentMethod()));
     }
     @Override
     public GatewayPayment getPayment(String providerPaymentId) {
