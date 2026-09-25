@@ -26,7 +26,7 @@ Only the API Gateway should be public. Auth, Merchant, Payment, Provider, Ledger
 | Feature | Frontend | Backend connection | Deployment status |
 |---|---|---|---|
 | Login | `/login` | `POST /api/v1/auth/login` | Connected |
-| Registration | `/register` | `POST /api/v1/auth/register` | Connected |
+| Registration | `/register` | `POST /api/v1/auth/register` | Connected; collects owner + business name and creates a new merchant-owned account |
 | Session refresh | Axios interceptor | `POST /api/v1/auth/refresh` | Connected |
 | Logout / logout all | auth service | auth endpoints | Connected |
 | Current user | protected route | `GET /api/v1/auth/me` | Connected |
