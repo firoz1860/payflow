@@ -45,6 +45,8 @@ payflow:
     sandbox:
       webhook-secret: ${SANDBOX_WEBHOOK_SECRET:sandbox-webhook-secret}
       checkout-url: ${SANDBOX_CHECKOUT_URL:http://localhost:8086/sandbox/checkout}
+      auto-capture: ${SANDBOX_AUTO_CAPTURE:false}
+      auto-capture-delay-ms: ${SANDBOX_AUTO_CAPTURE_DELAY_MS:5000}
     razorpay:
       key-id: ${RAZORPAY_KEY_ID:}
       key-secret: ${RAZORPAY_KEY_SECRET:}
