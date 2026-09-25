@@ -82,7 +82,10 @@ public class AuthController {
     public ResponseEntity<AuthDtos.UserResponse> assignRole(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @Valid @RequestBody AuthDtos.AssignRoleRequest request) {
-        return ResponseEntity.ok(authService.assignRole(principal.userId(), request.userId(), request.role()));
+        return ResponseEntity.ok(authService.assignRole(
+                principal.userId(), principal.merchantId(),
+                principal.hasPermission("platform:admin"),
+                request.userId(), request.role()));
     }
     private String clientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
