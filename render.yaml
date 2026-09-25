@@ -13,7 +13,7 @@ services:
   - type: pserv
     name: payflow-kafka
     runtime: docker
-    plan: starter
+    plan: 0.5c-512mb
     region: singapore
     dockerContext: .
     dockerfilePath: ./infrastructure/render/kafka/Dockerfile
@@ -31,12 +31,14 @@ services:
   - type: pserv
     name: payflow-auth
     runtime: docker
-    plan: starter
+    plan: 0.5c-512mb
     region: singapore
     dockerContext: .
     dockerfilePath: ./auth-service/Dockerfile
     autoDeployTrigger: checksPass
     envVars:
+      - key: PORT
+        value: "8081"
       - key: DATABASE_URL
         fromDatabase:
           name: payflow-db
@@ -74,12 +76,14 @@ services:
   - type: pserv
     name: payflow-merchant
     runtime: docker
-    plan: starter
+    plan: 0.5c-512mb
     region: singapore
     dockerContext: .
     dockerfilePath: ./merchant-service/Dockerfile
     autoDeployTrigger: checksPass
     envVars:
+      - key: PORT
+        value: "8082"
       - key: DATABASE_URL
         fromDatabase:
           name: payflow-db
@@ -114,12 +118,14 @@ services:
   - type: pserv
     name: payflow-provider
     runtime: docker
-    plan: starter
+    plan: 0.5c-512mb
     region: singapore
     dockerContext: .
     dockerfilePath: ./provider-service/Dockerfile
     autoDeployTrigger: checksPass
     envVars:
+      - key: PORT
+        value: "8086"
       - key: DATABASE_URL
         fromDatabase:
           name: payflow-db
@@ -146,12 +152,14 @@ services:
   - type: pserv
     name: payflow-payment
     runtime: docker
-    plan: starter
+    plan: 0.5c-512mb
     region: singapore
     dockerContext: .
     dockerfilePath: ./payment-service/Dockerfile
     autoDeployTrigger: checksPass
     envVars:
+      - key: PORT
+        value: "8085"
       - key: DATABASE_URL
         fromDatabase:
           name: payflow-db
@@ -194,12 +202,14 @@ services:
   - type: pserv
     name: payflow-ledger
     runtime: docker
-    plan: starter
+    plan: 0.5c-512mb
     region: singapore
     dockerContext: .
     dockerfilePath: ./ledger-service/Dockerfile
     autoDeployTrigger: checksPass
     envVars:
+      - key: PORT
+        value: "8088"
       - key: DATABASE_URL
         fromDatabase:
           name: payflow-db
@@ -229,6 +239,8 @@ services:
     autoDeployTrigger: checksPass
     healthCheckPath: /actuator/health
     envVars:
+      - key: PORT
+        value: "8080"
       - key: SPRING_DATA_REDIS_URL
         fromService:
           type: keyvalue
