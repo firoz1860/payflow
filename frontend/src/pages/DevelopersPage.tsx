@@ -36,7 +36,7 @@ export function DevelopersPage() {
         <aside className="card p-4 xl:col-span-1">
           <nav className="space-y-1 text-sm">
             {['Quick Start', 'Authentication', 'Idempotency', 'QR Payments', 'Webhooks', 'Error Handling', 'Going Live'].map((label) => (
-              <a key={label} href={`#${label.toLowerCase().replaceAll(' ', '-')}`} className="block rounded-lg px-3 py-2 text-slate-600 hover:bg-blue-50 hover:text-blue-700">
+              <a key={label} href={`#${label.toLowerCase().replace(/\\s+/g, '-')}`} className="block rounded-lg px-3 py-2 text-slate-600 hover:bg-blue-50 hover:text-blue-700">
                 {label}
               </a>
             ))}
