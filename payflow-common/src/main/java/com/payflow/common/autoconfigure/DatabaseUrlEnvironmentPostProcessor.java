@@ -82,7 +82,7 @@ public final class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPos
     }
 
     private String decode(String value) {
-        return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        return URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8);
     }
 
     @Override
