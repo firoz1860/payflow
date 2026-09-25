@@ -122,16 +122,30 @@ class AuthServiceTest {
         verify(oneTimeTokenRepository, never()).save(any());
     }
     @Test
-    @DisplayName("PAYFLOW_ADMIN cannot be self-assigned at registration")
-    void adminRoleCannotBeSelfAssigned() {
+    @DisplayName("public registration cannot self-assign a privileged role")
+    void publicRegistrationCannotSelfAssignRole() {
         when(userRepository.existsByEmailIgnoreCase(any())).thenReturn(false);
         assertThatThrownBy(() -> authService.register(new AuthDtos.RegisterRequest(
                 "attacker@test.local", "Passw0rdPassw0rd", "Attacker", null,
                 com.payflow.auth.domain.RoleName.PAYFLOW_ADMIN)))
                 .isInstanceOf(PayFlowException.class)
-                .hasMessageContaining("cannot be self-assigned");
+                .hasMessageContaining("cannot self-assign");
         verify(userRepository, never()).save(any());
     }
+    @Test
+    @DisplayName("public registration cannot attach itself to an existing merchant")
+    void publicRegistrationCannotSelfAssignMerchant() {
+        when(userRepository.existsByEmailIgnoreCase(any())).thenReturn(false);
+        assertThatThrownBy(() -> authService.register(new AuthDtos.RegisterRequest(
+                "attacker2@test.local", "Passw0rdPassw0rd", "Attacker",
+                UUID.randomUUID(), null)))
+                .isInstanceOf(PayFlowException.class)
+                .hasMessageContaining("cannot self-assign");
+        verify(userRepository, never()).save(any());
+        verify(merchantRegistrationClient, never())
+                .create(any(), any(), any(), any(), any());
+    }
+
     @Test
     @DisplayName("a merchant team manager cannot grant PAYFLOW_ADMIN")
     void merchantTeamManagerCannotGrantPlatformAdmin() {
