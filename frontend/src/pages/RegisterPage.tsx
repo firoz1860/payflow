@@ -70,7 +70,7 @@ export function RegisterPage() {
             <span className="text-white font-bold text-2xl">P</span>
           </motion.div>
           <h1 className="text-2xl font-bold text-white">Create account</h1>
-          <p className="mt-1 text-sm text-slate-400">Join PayFlow as a merchant developer</p>
+          <p className="mt-1 text-sm text-slate-400">Create your PayFlow merchant account</p>
         </div>
 
         <motion.div
