@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Eye, EyeOff, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, Building2, Eye, EyeOff, ArrowLeft, ArrowRight } from 'lucide-react';
 import { register } from '../services/authService';
 import { extractError } from '../api';
 import { toast } from '../components/Toast';
@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ fullName: '', email: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ fullName: '', businessName: '', email: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -25,7 +25,7 @@ export function RegisterPage() {
 
     setLoading(true);
     try {
-      await register(form.email, form.password, form.fullName);
+      await register(form.email, form.password, form.fullName, form.businessName);
       toast('success', 'Account created! Please sign in.');
       navigate('/login');
     } catch (err) {
@@ -94,6 +94,15 @@ export function RegisterPage() {
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input required value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                   placeholder="Jane Doe" className="input pl-10" />
+              </div>
+            </div>
+
+            <div>
+              <label className="label">Business name</label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input required value={form.businessName} onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+                  placeholder="Acme Technologies" className="input pl-10" />
               </div>
             </div>
 
