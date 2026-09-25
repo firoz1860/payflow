@@ -116,6 +116,7 @@ export function PaymentDetailPage() {
             <dl className="grid grid-cols-2 gap-4 text-sm">
               <Info label="Order ID" value={payment.merchantOrderId || '—'} />
               <Info label="Provider" value={payment.provider || '—'} />
+              <Info label="Provider Payment ID" value={payment.providerPaymentId || '—'} />
               <Info label="Description" value={payment.description || '—'} />
               <Info label="Created" value={formatDateTime(payment.createdAt)} />
               <Info label="Updated" value={formatDateTime(payment.updatedAt)} />
