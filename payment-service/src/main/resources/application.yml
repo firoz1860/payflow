@@ -1,5 +1,5 @@
 server:
-  port: 8085
+  port: ${PORT:8085}
   shutdown: graceful
   tomcat:
     max-http-form-post-size: 256KB
