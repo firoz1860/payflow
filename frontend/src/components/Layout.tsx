@@ -1,21 +1,26 @@
 import { ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { Topbar } from './Topbar';
+import { AmbientGlow } from './AmbientGlow';
 import { ToastContainer } from './Toast';
 import { PageTransition } from '../lib/motion';
-import { useLocation } from 'react-router-dom';
 
 export function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
+
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="relative min-h-screen overflow-x-hidden bg-slate-50/60 text-slate-800">
+      <AmbientGlow />
       <Sidebar />
-      <main className="flex-1 overflow-x-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pt-16 lg:pt-8">
-          <PageTransition key={location.pathname}>
-            {children}
-          </PageTransition>
+      <Topbar />
+
+      <main className="min-h-screen px-4 pb-12 pt-24 sm:px-6 lg:pl-72 lg:pr-6">
+        <div className="mx-auto max-w-7xl">
+          <PageTransition key={location.pathname}>{children}</PageTransition>
         </div>
       </main>
+
       <ToastContainer />
     </div>
   );
