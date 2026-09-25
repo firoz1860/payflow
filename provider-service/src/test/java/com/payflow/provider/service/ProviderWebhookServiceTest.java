@@ -42,7 +42,7 @@ class ProviderWebhookServiceTest {
     void setUp() {
         ProviderProperties properties = new ProviderProperties();
         PaymentGateway sandbox = new SandboxPaymentGateway(properties, new ObjectMapper(),
-                new QrCodeRenderer());
+                new QrCodeRenderer(), event -> { });
         PaymentGatewayRegistry registry = new PaymentGatewayRegistry(List.of(sandbox), "sandbox");
         service = new ProviderWebhookService(registry, eventRepository, outbox,
                 new SimpleMeterRegistry());
