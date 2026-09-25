@@ -12,6 +12,14 @@ import { PaymentDetailPage } from './pages/PaymentDetailPage';
 import { CreatePaymentPage } from './pages/CreatePaymentPage';
 import { ApiKeysPage } from './pages/ApiKeysPage';
 import { MerchantProfilePage } from './pages/MerchantProfilePage';
+import { QrCheckoutPage } from './pages/QrCheckoutPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { LedgerPage } from './pages/LedgerPage';
+import { LedgerPostingDetailPage } from './pages/LedgerPostingDetailPage';
+import { WebhooksPage } from './pages/WebhooksPage';
+import { MonitoringPage } from './pages/MonitoringPage';
+import { DeveloperDocsPage } from './pages/DeveloperDocsPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { AdminMerchantsPage } from './pages/AdminMerchantsPage';
 import { AdminMerchantDetailPage } from './pages/AdminMerchantDetailPage';
 import { AdminRolesPage } from './pages/AdminRolesPage';
@@ -30,6 +38,14 @@ export default function App() {
       <Route path="/payments/create" element={<ProtectedRoute permission="payments:create"><Layout><CreatePaymentPage /></Layout></ProtectedRoute>} />
       <Route path="/payments/:reference" element={<ProtectedRoute permission="payments:read"><Layout><PaymentDetailPage /></Layout></ProtectedRoute>} />
       <Route path="/api-keys" element={<ProtectedRoute permission="api_keys:manage"><Layout><ApiKeysPage /></Layout></ProtectedRoute>} />
+      <Route path="/payments/:reference/checkout" element={<ProtectedRoute permission="payments:read"><Layout><QrCheckoutPage /></Layout></ProtectedRoute>} />
+      <Route path="/analytics" element={<ProtectedRoute permission="payments:read"><Layout><AnalyticsPage /></Layout></ProtectedRoute>} />
+      <Route path="/ledger" element={<ProtectedRoute permission="ledger:read"><Layout><LedgerPage /></Layout></ProtectedRoute>} />
+      <Route path="/ledger/:postingId" element={<ProtectedRoute permission="ledger:read"><Layout><LedgerPostingDetailPage /></Layout></ProtectedRoute>} />
+      <Route path="/webhooks" element={<ProtectedRoute permission="webhooks:manage"><Layout><WebhooksPage /></Layout></ProtectedRoute>} />
+      <Route path="/monitoring" element={<ProtectedRoute><Layout><MonitoringPage /></Layout></ProtectedRoute>} />
+      <Route path="/developers" element={<ProtectedRoute><Layout><DeveloperDocsPage /></Layout></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute permission="merchant:read"><Layout><SettingsPage /></Layout></ProtectedRoute>} />
       <Route path="/merchant" element={<ProtectedRoute permission="merchant:read"><Layout><MerchantProfilePage /></Layout></ProtectedRoute>} />
       <Route path="/admin/merchants" element={<ProtectedRoute permission="platform:admin"><Layout><AdminMerchantsPage /></Layout></ProtectedRoute>} />
       <Route path="/admin/merchants/:id" element={<ProtectedRoute permission="platform:admin"><Layout><AdminMerchantDetailPage /></Layout></ProtectedRoute>} />
