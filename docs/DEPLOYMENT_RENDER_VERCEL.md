@@ -58,7 +58,8 @@ The default provider is `sandbox`.
 - The Render Blueprint enables `SANDBOX_AUTO_CAPTURE=true`. After a short delay, the sandbox emits a signed provider event through the same webhook/outbox/Kafka path used by real provider confirmations. Normal test amounts become `CAPTURED`; amounts ending in `.13` fail during provider confirmation, and amounts ending in `.99` fail at creation.
 - Local Docker keeps sandbox auto-capture disabled by default so the existing manual webhook smoke test remains deterministic.
 - There is no production-grade hosted sandbox checkout UI; deployed demo payments complete through the signed sandbox provider simulator instead.
-- Razorpay support is implemented in the Provider Service for real provider integration.
+- Razorpay support is implemented in the Provider Service for order creation, signed webhooks, refunds, and provider-generated QR codes. The QR path returns a directly renderable provider image URL.
+- The current React dashboard does not yet embed Razorpay Checkout for non-QR LIVE orders, so use sandbox mode for the complete deployed demo unless you add that browser checkout integration.
 - Stripe configuration fields exist, but a Stripe `PaymentGateway` implementation is not present in the current core. Do not select Stripe yet.
 - The Risk Service is not part of this core deployment. Payment Service has an intentional fallback: requests up to the configured fail-open ceiling (default 5000) can continue; larger requests go to REVIEW when risk is unavailable.
 
@@ -226,5 +227,7 @@ These are backend capability gaps, not missing frontend API wiring:
 3. Stripe is not implemented as a Provider gateway.
 4. The standalone Risk Service is absent; the Payment Service's defined fail-open/fail-review fallback remains active.
 5. The sandbox provider is for functional testing, not real money movement.
+6. Public registration is intentionally tenant-safe: a new signup creates its own merchant as `MERCHANT_OWNER`; callers cannot self-assign an existing `merchantId` or a privileged role. A complete invitation/onboarding flow for adding a brand-new user to an existing merchant is not part of the current core.
+7. Razorpay non-QR LIVE order creation exists in the backend, but the current frontend does not embed the Razorpay Checkout browser widget.
 
-These limitations should not be represented as completed production features until their backend services are added.
+These limitations should not be represented as completed production features until their backend/UI pieces are added.
