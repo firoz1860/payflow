@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuthStore } from '../store/auth';
+import { logout as logoutSession } from '../services/authService';
 import { cn } from '../lib/utils';
 
 const paymentNav = [
@@ -47,13 +48,21 @@ const adminNav = [
 ];
 
 export function Sidebar() {
-  const { user, logout, hasPermission, isAdmin } = useAuthStore();
+  const { user, refreshToken, logout: clearAuth, hasPermission, isAdmin } = useAuthStore();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      if (refreshToken) {
+        await logoutSession(refreshToken);
+      }
+    } catch {
+      // Local sign-out must still complete if the network/session is already gone.
+    } finally {
+      clearAuth();
+      navigate('/login');
+    }
   };
 
   const visiblePayments = paymentNav.filter((item) => !item.perm || hasPermission(item.perm));
