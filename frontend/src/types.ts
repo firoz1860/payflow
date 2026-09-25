@@ -88,6 +88,7 @@ export interface Payment {
   environment: string;
   description: string | null;
   provider: string | null;
+  providerPaymentId: string | null;
   checkoutUrl: string | null;
   qrCode: QrCode | null;
   failureCode: string | null;
