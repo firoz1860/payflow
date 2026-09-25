@@ -1,6 +1,8 @@
 # API reference
 
-Base URL: `http://localhost:8080` (the gateway). Every response carries
+Base URL with the repository Docker Compose setup: `http://localhost:8000`
+(the API Gateway is published from container port 8080 to host port 8000).
+Every response carries
 `X-Correlation-Id`; quote it in support requests.
 
 ## Authentication
@@ -77,7 +79,9 @@ Response `201`:
   "refundedAmount": 0.00,
   "refundableAmount": 1000.00,
   "status": "PENDING",
-  "checkoutUrl": "https://…",
+  "provider": "sandbox",
+  "providerPaymentId": "sbx_pay_…",
+  "checkoutUrl": null,
   "attempts": [
     { "attemptNumber": 1, "provider": "sandbox", "paymentMethod": "CARD",
       "status": "PENDING", "amount": 1000.00 }
@@ -87,9 +91,11 @@ Response `201`:
 
 A replayed request returns the identical body plus `Idempotent-Replay: true`.
 
-**Do not treat a `checkoutUrl` redirect as payment.** Status only becomes
-`CAPTURED` when a signature-verified provider webhook says so. Wait for the
-`payment.succeeded` webhook or poll `GET /api/v1/payments/{reference}`.
+**Do not treat browser success or a checkout redirect as payment.** Status only
+becomes `CAPTURED` after PayFlow processes a trusted provider confirmation.
+Poll `GET /api/v1/payments/{reference}` for the current core build. The planned
+merchant webhook-delivery service is not implemented yet, so this repository
+does not currently promise outbound `payment.succeeded` delivery to merchant URLs.
 
 ### Statuses
 
@@ -102,23 +108,31 @@ any non-terminal → FAILED | CANCELLED
 
 Transitions are enforced. A late webhook cannot move a `CAPTURED` payment back.
 
-## Merchant webhooks
+## Webhooks
 
-Verify every webhook before acting on it:
+### Provider ingress — implemented
 
+Payment-provider callbacks enter through:
+
+```http
+POST /api/v1/provider-webhooks/{provider}
 ```
-expected = HMAC_SHA256(webhook_secret, X-PayFlow-Timestamp + "." + rawBody)
-```
 
-Compare against `X-PayFlow-Signature` in constant time, reject timestamps older
-than 5 minutes, and deduplicate on `X-PayFlow-Event-ID`. Compute the HMAC over
-the **raw** body — parsing and re-serialising the JSON changes the bytes.
+The Provider Service verifies the provider signature over the raw request body,
+deduplicates provider events, writes them to its outbox, and publishes the
+result through Kafka. The sandbox uses
+`X-PayFlow-Sandbox-Signature` + `X-PayFlow-Timestamp`; Razorpay uses
+`X-Razorpay-Signature`.
 
-Return `2xx` quickly and do the work asynchronously. A slow response triggers
-redelivery: immediate, 1m, 5m, 30m, 2h, then the endpoint is marked dead.
+This endpoint is for configured payment providers, not for merchant browser code.
+Provider webhook secrets stay on the backend.
 
-Events: `payment.created`, `payment.succeeded`, `payment.failed`,
-`refund.completed`, `refund.failed`, `settlement.completed`.
+### Merchant outbound webhooks — planned
+
+The gateway reserves `/api/v1/webhook-endpoints/**`, but the merchant
+webhook-management/delivery service is not part of the current core. The React
+dashboard therefore reports that capability as unavailable instead of showing
+fake endpoint or delivery data.
 
 ## Rate limits
 
@@ -139,8 +153,13 @@ TEST keys route to the sandbox gateway, which has deterministic hooks:
 | Amount ends in | Behaviour |
 |---|---|
 | `.99` | declines at creation |
-| `.13` | declines at the webhook stage |
-| anything else | proceeds to checkout |
+| `.13` | fails during provider confirmation when sandbox auto-confirm is enabled |
+| anything else | starts as `PENDING` |
 
-Sandbox webhooks are HMAC-signed exactly like a real provider's, so your
-verification code is genuinely exercised before you go live.
+The Render Blueprint enables sandbox auto-confirmation for the deployed demo:
+after roughly five seconds a signed sandbox provider event moves a normal test
+payment to `CAPTURED`. Local Docker keeps auto-confirmation disabled by default
+so manual webhook and deduplication tests remain deterministic.
+
+Sandbox provider events are HMAC-signed and pass through the same Provider
+Service verification, outbox, Kafka, Payment Service, and Ledger Service flow.
