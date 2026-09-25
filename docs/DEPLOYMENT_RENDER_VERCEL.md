@@ -55,7 +55,9 @@ The default provider is `sandbox`.
 
 - TEST payments use the sandbox provider.
 - Sandbox QR generation is real application logic and returns a scannable QR payload/image, but it is a test QR and does not move real money.
-- Sandbox non-QR payment creation returns a pending test payment. There is no production-grade hosted sandbox checkout UI in the current core.
+- The Render Blueprint enables `SANDBOX_AUTO_CAPTURE=true`. After a short delay, the sandbox emits a signed provider event through the same webhook/outbox/Kafka path used by real provider confirmations. Normal test amounts become `CAPTURED`; amounts ending in `.13` fail during provider confirmation, and amounts ending in `.99` fail at creation.
+- Local Docker keeps sandbox auto-capture disabled by default so the existing manual webhook smoke test remains deterministic.
+- There is no production-grade hosted sandbox checkout UI; deployed demo payments complete through the signed sandbox provider simulator instead.
 - Razorpay support is implemented in the Provider Service for real provider integration.
 - Stripe configuration fields exist, but a Stripe `PaymentGateway` implementation is not present in the current core. Do not select Stripe yet.
 - The Risk Service is not part of this core deployment. Payment Service has an intentional fallback: requests up to the configured fail-open ceiling (default 5000) can continue; larger requests go to REVIEW when risk is unavailable.
@@ -180,7 +182,7 @@ VITE_DEV_API_PROXY=http://localhost:8000
    VITE_API_URL=https://YOUR-GATEWAY.onrender.com/api/v1
    ```
    and redeploy the frontend.
-6. Test registration -> login -> dashboard -> create QR payment -> payment detail -> API keys -> merchant settings.
+6. Test registration -> login -> dashboard -> create QR payment. In Render sandbox mode it should move from `PENDING` to `CAPTURED` after roughly five seconds, then test payment detail -> API keys -> merchant settings.
 7. If you enable Razorpay, add its three provider secrets and then configure the signed webhook URL shown above.
 
 ## 5. Smoke checks after deployment
