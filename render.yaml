@@ -50,6 +50,10 @@ services:
           property: connectionString
       - key: PAYFLOW_DB_SCHEMA
         value: auth
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"
       - key: SPRING_DATA_REDIS_URL
         fromService:
           type: keyvalue
@@ -95,6 +99,10 @@ services:
           property: connectionString
       - key: PAYFLOW_DB_SCHEMA
         value: merchant
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"
       - key: SPRING_DATA_REDIS_URL
         fromService:
           type: keyvalue
@@ -137,6 +145,10 @@ services:
           property: connectionString
       - key: PAYFLOW_DB_SCHEMA
         value: provider
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"
       - key: KAFKA_BOOTSTRAP_SERVERS
         fromService:
           type: pserv
@@ -175,6 +187,10 @@ services:
           property: connectionString
       - key: PAYFLOW_DB_SCHEMA
         value: payment
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"
       - key: SPRING_DATA_REDIS_URL
         fromService:
           type: keyvalue
@@ -225,6 +241,10 @@ services:
           property: connectionString
       - key: PAYFLOW_DB_SCHEMA
         value: ledger
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"
       - key: KAFKA_BOOTSTRAP_SERVERS
         fromService:
           type: pserv
