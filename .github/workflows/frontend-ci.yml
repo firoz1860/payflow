@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feat/stitch-ui-integration
+      - feat/finalize-frontend
   pull_request:
     branches:
       - main
