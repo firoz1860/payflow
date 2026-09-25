@@ -9,7 +9,7 @@ for i in $(seq 1 120); do
 done
 
 apt-get update
-apt-get install -y git curl ca-certificates openjdk-21-jdk maven docker.io docker-compose-v2 openssl jq
+apt-get install -y git curl ca-certificates openjdk-21-jdk maven docker.io docker-compose-v2 openssl jq nodejs npm
 systemctl enable --now docker
 
 modprobe zram || true
@@ -20,6 +20,11 @@ if [ -e /sys/block/zram0/disksize ]; then
 fi
 
 cd /opt/payflow
+TOKEN="$(curl -fsS -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600')"
+IPV6="$(curl -fsS -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/ipv6)"
+HOST="$(printf '%s' "$IPV6" | tr ':' '-').sslip.io"
+echo "$HOST" >/etc/payflow-api-hostname.tmp
+
 umask 077
 mkdir -p /etc/payflow
 
@@ -57,8 +62,8 @@ PROVIDER_SERVICE_URL=http://127.0.0.1:8086
 LEDGER_SERVICE_URL=http://127.0.0.1:8088
 AUTH_SERVICE_URL=http://127.0.0.1:8081
 RISK_SERVICE_URL=http://127.0.0.1:8093
-PAYFLOW_CORS_ORIGINS=https://payflow-k3vcnmcdm-firozs-projects-70dbf044.vercel.app
-JAVA_TOOL_OPTIONS=-Xms48m -Xmx144m -XX:MaxMetaspaceSize=96m -XX:+UseSerialGC -Xss384k -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false
+PAYFLOW_CORS_ORIGINS=https://$HOST
+JAVA_TOOL_OPTIONS="-Xms48m -Xmx144m -XX:MaxMetaspaceSize=96m -XX:+UseSerialGC -Xss384k -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
 EOF
 chmod 600 /etc/payflow/common.env
 
@@ -133,6 +138,17 @@ for svc in api-gateway auth-service merchant-service payment-service provider-se
   cp "$jar" "/opt/payflow/jars/$svc.jar"
 done
 
+rm -rf /opt/payflow/api-gateway/target /opt/payflow/auth-service/target /opt/payflow/merchant-service/target \
+  /opt/payflow/payment-service/target /opt/payflow/provider-service/target /opt/payflow/ledger-service/target \
+  /root/.m2/repository || true
+
+cd /opt/payflow/frontend
+rm -rf node_modules dist
+npm ci
+VITE_API_URL=/api/v1 npm run build
+rm -rf node_modules /root/.npm
+cd /opt/payflow
+
 set -a
 . /etc/payflow/common.env
 set +a
@@ -189,15 +205,26 @@ systemctl start auth-service
 sleep 10
 systemctl start api-gateway
 
-TOKEN="$(curl -fsS -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600')"
-IPV6="$(curl -fsS -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/ipv6)"
-HOST="$(printf '%s' "$IPV6" | tr ':' '-').sslip.io"
 echo "$HOST" >/etc/payflow/api-hostname
 
 cat >/opt/payflow/Caddyfile.aws <<EOF
 $HOST {
   encode zstd gzip
-  reverse_proxy 127.0.0.1:8080
+
+  handle /api/* {
+    reverse_proxy 127.0.0.1:8080
+  }
+
+  handle /actuator/* {
+    reverse_proxy 127.0.0.1:8080
+  }
+
+  handle {
+    root * /srv
+    try_files {path} /index.html
+    file_server
+  }
+
   header {
     -Server
     X-Content-Type-Options "nosniff"
@@ -210,6 +237,7 @@ EOF
 docker rm -f payflow-caddy >/dev/null 2>&1 || true
 docker run -d --name payflow-caddy --restart unless-stopped --network host \
   -v /opt/payflow/Caddyfile.aws:/etc/caddy/Caddyfile:ro \
+  -v /opt/payflow/frontend/dist:/srv:ro \
   -v payflow-caddy-data:/data \
   -v payflow-caddy-config:/config \
   caddy:2-alpine
