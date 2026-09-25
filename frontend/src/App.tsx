@@ -44,9 +44,9 @@ export default function App() {
       <Route path="/payments/:reference" element={protectedPage(<PaymentDetailPage />, 'payments:read')} />
       <Route path="/transactions" element={<Navigate to="/payments" replace />} />
 
-      <Route path="/ledger" element={protectedPage(<LedgerPage />)} />
-      <Route path="/analytics" element={protectedPage(<AnalyticsPage />)} />
-      <Route path="/webhooks" element={protectedPage(<WebhooksPage />)} />
+      <Route path="/ledger" element={protectedPage(<LedgerPage />, 'payments:read')} />
+      <Route path="/analytics" element={protectedPage(<AnalyticsPage />, 'payments:read')} />
+      <Route path="/webhooks" element={protectedPage(<WebhooksPage />, 'webhooks:manage')} />
       <Route path="/developers" element={protectedPage(<DevelopersPage />)} />
 
       <Route path="/api-keys" element={protectedPage(<ApiKeysPage />, 'api_keys:manage')} />
