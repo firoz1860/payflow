@@ -1,31 +1,47 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard,
+  Activity,
+  BarChart3,
+  BookOpen,
+  Building2,
+  Code2,
   CreditCard,
   KeyRound,
-  Building2,
-  LogOut,
-  ShieldCheck,
-  Receipt,
-  Menu,
-  X,
-  Users,
+  LayoutDashboard,
   LockKeyhole,
+  LogOut,
+  Menu,
+  QrCode,
+  Receipt,
+  Settings,
+  ShieldCheck,
+  Users,
+  Webhook,
+  X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuthStore } from '../store/auth';
 import { cn } from '../lib/utils';
 
-const merchantNav = [
+const paymentNav = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, perm: null },
   { to: '/payments', label: 'Payments', icon: CreditCard, perm: 'payments:read' },
   { to: '/payments/create', label: 'Create Payment', icon: Receipt, perm: 'payments:create' },
+  { to: '/payments/qr', label: 'QR Payments', icon: QrCode, perm: 'payments:create' },
+];
+
+const platformNav = [
+  { to: '/ledger', label: 'Ledger', icon: BookOpen, perm: null },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3, perm: null },
   { to: '/api-keys', label: 'API Keys', icon: KeyRound, perm: 'api_keys:manage' },
-  { to: '/merchant', label: 'Merchant Profile', icon: Building2, perm: 'merchant:read' },
+  { to: '/webhooks', label: 'Webhooks', icon: Webhook, perm: null },
+  { to: '/developers', label: 'Developers', icon: Code2, perm: null },
+  { to: '/settings', label: 'Settings', icon: Settings, perm: 'merchant:read' },
 ];
 
 const adminNav = [
+  { to: '/monitoring', label: 'Monitoring', icon: Activity, perm: 'platform:admin' },
   { to: '/admin/merchants', label: 'Merchants', icon: ShieldCheck, perm: 'platform:admin' },
   { to: '/admin/roles', label: 'User Roles', icon: Users, perm: 'platform:admin' },
 ];
@@ -40,7 +56,8 @@ export function Sidebar() {
     navigate('/login');
   };
 
-  const visibleMerchant = merchantNav.filter((item) => !item.perm || hasPermission(item.perm));
+  const visiblePayments = paymentNav.filter((item) => !item.perm || hasPermission(item.perm));
+  const visiblePlatform = platformNav.filter((item) => !item.perm || hasPermission(item.perm));
   const visibleAdmin = isAdmin() ? adminNav : [];
 
   return (
@@ -73,7 +90,8 @@ export function Sidebar() {
             >
               <SidebarContent
                 user={user}
-                visibleMerchant={visibleMerchant}
+                visiblePayments={visiblePayments}
+                visiblePlatform={visiblePlatform}
                 visibleAdmin={visibleAdmin}
                 onNavigate={() => setMobileOpen(false)}
                 onLogout={handleLogout}
@@ -87,7 +105,8 @@ export function Sidebar() {
       <aside className="fixed bottom-4 left-4 top-4 z-40 hidden w-64 flex-col overflow-hidden rounded-2xl border border-white/80 bg-white/82 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)] backdrop-blur-2xl lg:flex">
         <SidebarContent
           user={user}
-          visibleMerchant={visibleMerchant}
+          visiblePayments={visiblePayments}
+          visiblePlatform={visiblePlatform}
           visibleAdmin={visibleAdmin}
           onLogout={handleLogout}
         />
@@ -98,7 +117,8 @@ export function Sidebar() {
 
 interface SidebarContentProps {
   user: any;
-  visibleMerchant: any[];
+  visiblePayments: any[];
+  visiblePlatform: any[];
   visibleAdmin: any[];
   onLogout: () => void;
   onNavigate?: () => void;
@@ -107,7 +127,8 @@ interface SidebarContentProps {
 
 function SidebarContent({
   user,
-  visibleMerchant,
+  visiblePayments,
+  visiblePlatform,
   visibleAdmin,
   onLogout,
   onNavigate,
@@ -133,7 +154,10 @@ function SidebarContent({
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3">
-        <NavSection label="Core Platform" items={visibleMerchant} onNavigate={onNavigate} />
+        <NavSection label="Payments" items={visiblePayments} onNavigate={onNavigate} />
+        <div className="mt-5">
+          <NavSection label="Platform" items={visiblePlatform} onNavigate={onNavigate} />
+        </div>
 
         {visibleAdmin.length > 0 && (
           <div className="mt-5">
