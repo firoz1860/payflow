@@ -62,16 +62,14 @@ public class AuthService {
         if (userRepository.existsByEmailIgnoreCase(email)) {
             throw PayFlowException.conflict(ErrorCode.CONFLICT, "Unable to register with the details provided");
         }
-        RoleName roleName = request.role() == null ? RoleName.MERCHANT_OWNER : request.role();
-        if (roleName == RoleName.PAYFLOW_ADMIN) {
-            throw PayFlowException.forbidden("PAYFLOW_ADMIN cannot be self-assigned");
+        if (request.merchantId() != null || request.role() != null) {
+            throw PayFlowException.forbidden(
+                    "Public registration cannot self-assign a merchant or role");
         }
-        UUID merchantId = request.merchantId();
-        if (merchantId == null && roleName != RoleName.PAYFLOW_ADMIN) {
-            MerchantRegistrationClient.CreatedMerchant merchant = merchantRegistrationClient.create(
-                    request.fullName().trim(), email, null, "IN", "INR");
-            merchantId = merchant.id();
-        }
+        RoleName roleName = RoleName.MERCHANT_OWNER;
+        MerchantRegistrationClient.CreatedMerchant merchant = merchantRegistrationClient.create(
+                request.fullName().trim(), email, null, "IN", "INR");
+        UUID merchantId = merchant.id();
         User user = new User(email, passwordEncoder.encode(request.password()),
                 request.fullName().trim(), merchantId);
         user.addRole(loadRole(roleName));
