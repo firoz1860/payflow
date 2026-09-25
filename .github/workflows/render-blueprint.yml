@@ -16,9 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Render CLI
+      - name: Validate render.yaml against Render schema
         run: |
-          curl -fsSL https://raw.githubusercontent.com/render-oss/cli/main/bin/install.sh | sh
-          echo "$HOME/.render/bin" >> "$GITHUB_PATH"
-      - name: Validate render.yaml
-        run: render blueprints validate render.yaml
+          python -m pip install --disable-pip-version-check check-jsonschema
+          check-jsonschema             --schemafile https://render.com/schema/render.yaml.json             render.yaml
