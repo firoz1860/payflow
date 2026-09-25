@@ -10,7 +10,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 class SandboxQrPaymentTest {
     private final SandboxPaymentGateway gateway = new SandboxPaymentGateway(
-            new ProviderProperties(), new ObjectMapper(), new QrCodeRenderer());
+            new ProviderProperties(), new ObjectMapper(), new QrCodeRenderer(), event -> { });
     private PaymentGateway.CreateGatewayPaymentCommand command(BigDecimal amount, String method) {
         return new PaymentGateway.CreateGatewayPaymentCommand(
                 "pay_ref_123", "merchant-1", amount, "INR", "Order 42",
