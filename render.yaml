@@ -21,6 +21,11 @@ services:
     envVars:
       - key: PORT
         value: "9092"
+      - key: KAFKA_ADVERTISED_HOST
+        fromService:
+          type: pserv
+          name: payflow-kafka
+          property: host
       - key: KAFKA_CLUSTER_ID
         value: MkU3OEVBNTcwNTJENDM2Qk
     disk:
