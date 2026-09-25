@@ -5,7 +5,11 @@ GATEWAY="${GATEWAY:-http://localhost:8000}"
 PROVIDER="${PROVIDER:-http://localhost:8086}"
 LEDGER="${LEDGER:-http://localhost:8088}"
 INTERNAL_TOKEN="${PAYFLOW_INTERNAL_TOKEN:?set PAYFLOW_INTERNAL_TOKEN}"
-SANDBOX_SECRET="${SANDBOX_WEBHOOK_SECRET:-sandbox-webhook-secret}"
+SANDBOX_SECRET="${SANDBOX_WEBHOOK_SECRET:-}"
+if [ -z "$SANDBOX_SECRET" ] && [ -f .env ]; then
+  SANDBOX_SECRET=$(grep '^SANDBOX_WEBHOOK_SECRET=' .env | head -n1 | cut -d= -f2- || true)
+fi
+SANDBOX_SECRET="${SANDBOX_SECRET:-sandbox-webhook-secret}"
 
 green() { printf '\033[32m✓ %s\033[0m\n' "$1"; }
 fail()  { printf '\033[31m✗ %s\033[0m\n' "$1"; exit 1; }
