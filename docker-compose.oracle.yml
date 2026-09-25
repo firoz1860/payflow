@@ -1,0 +1,248 @@
+name: payflow-oracle
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  networks: [payflow]
+  mem_limit: 512m
+  environment: &common-env
+    SPRING_PROFILES_ACTIVE: docker
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: 5432
+    POSTGRES_USER: ${POSTGRES_USER}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    PAYFLOW_INTERNAL_TOKEN: ${PAYFLOW_INTERNAL_TOKEN}
+    JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k -XX:MaxMetaspaceSize=140m -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    mem_limit: 768m
+    networks: [payflow]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    mem_limit: 256m
+    networks: [payflow]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  kafka:
+    image: confluentinc/cp-kafka:7.7.12
+    restart: unless-stopped
+    mem_limit: 900m
+    networks: [payflow]
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server kafka:29092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+
+  api-gateway:
+    <<: *service-defaults
+    build: { context: ., dockerfile: api-gateway/Dockerfile }
+    environment:
+      <<: *common-env
+      JWT_PUBLIC_SECRET: ${JWT_SECRET}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      AUTH_SERVICE_URL: http://auth-service:8081
+      MERCHANT_SERVICE_URL: http://merchant-service:8082
+      PAYMENT_SERVICE_URL: http://payment-service:8085
+      PROVIDER_SERVICE_URL: http://provider-service:8086
+      LEDGER_SERVICE_URL: http://ledger-service:8088
+      CUSTOMER_SERVICE_URL: http://customer-service:8084
+      REFUND_SERVICE_URL: http://refund-service:8087
+      SETTLEMENT_SERVICE_URL: http://settlement-service:8089
+      WEBHOOK_SERVICE_URL: http://webhook-service:8091
+      PAYFLOW_CORS_ORIGINS: ${PAYFLOW_CORS_ORIGINS}
+    depends_on:
+      redis: { condition: service_healthy }
+      auth-service: { condition: service_healthy }
+      merchant-service: { condition: service_healthy }
+      payment-service: { condition: service_healthy }
+      provider-service: { condition: service_healthy }
+      ledger-service: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
+
+  auth-service:
+    <<: *service-defaults
+    build: { context: ., dockerfile: auth-service/Dockerfile }
+    environment:
+      <<: *common-env
+      POSTGRES_DB: auth_db
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      MERCHANT_SERVICE_URL: http://merchant-service:8082
+      PAYFLOW_ADMIN_EMAIL: ${PAYFLOW_ADMIN_EMAIL}
+      PAYFLOW_ADMIN_PASSWORD: ${PAYFLOW_ADMIN_PASSWORD}
+      PAYFLOW_AUTO_VERIFY_EMAIL: "true"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      merchant-service: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
+
+  merchant-service:
+    <<: *service-defaults
+    build: { context: ., dockerfile: merchant-service/Dockerfile }
+    environment:
+      <<: *common-env
+      POSTGRES_DB: merchant_db
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      API_KEY_PEPPER: ${API_KEY_PEPPER}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/actuator/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
+
+  provider-service:
+    <<: *service-defaults
+    build: { context: ., dockerfile: provider-service/Dockerfile }
+    environment:
+      <<: *common-env
+      POSTGRES_DB: provider_db
+      PAYFLOW_PROVIDER_DEFAULT: sandbox
+      SANDBOX_WEBHOOK_SECRET: ${SANDBOX_WEBHOOK_SECRET}
+      SANDBOX_AUTO_CAPTURE: "true"
+      SANDBOX_AUTO_CAPTURE_DELAY_MS: "5000"
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8086/actuator/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
+
+  payment-service:
+    <<: *service-defaults
+    build: { context: ., dockerfile: payment-service/Dockerfile }
+    environment:
+      <<: *common-env
+      POSTGRES_DB: payment_db
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      MERCHANT_SERVICE_URL: http://merchant-service:8082
+      PROVIDER_SERVICE_URL: http://provider-service:8086
+      RISK_SERVICE_URL: http://risk-service:8093
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      merchant-service: { condition: service_healthy }
+      provider-service: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8085/actuator/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
+
+  ledger-service:
+    <<: *service-defaults
+    build: { context: ., dockerfile: ledger-service/Dockerfile }
+    environment:
+      <<: *common-env
+      POSTGRES_DB: ledger_db
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8088/actuator/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    mem_limit: 160m
+    networks: [payflow]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      PAYFLOW_API_DOMAIN: ${PAYFLOW_API_DOMAIN}
+    volumes:
+      - ./infrastructure/oracle/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api-gateway: { condition: service_healthy }
+
+networks:
+  payflow:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  kafka-data:
+  caddy-data:
+  caddy-config:
