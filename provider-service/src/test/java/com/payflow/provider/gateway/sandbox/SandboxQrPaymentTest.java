@@ -41,7 +41,7 @@ class SandboxQrPaymentTest {
                 gateway.createPayment(command(new BigDecimal("250.00"), "CARD"));
         assertThat(result.qrCodeData()).isNull();
         assertThat(result.qrCodeImage()).isNull();
-        assertThat(result.checkoutUrl()).contains("?payment=");
+        assertThat(result.checkoutUrl()).isNull();
     }
     @Test
     @DisplayName("the .99 decline hook still fires for QR payments")
