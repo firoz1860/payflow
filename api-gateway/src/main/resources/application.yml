@@ -35,7 +35,7 @@ spring:
             maxAge: 3600
       routes:
         - id: auth-service
-          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          uri: ${AUTH_SERVICE_URL:http://${AUTH_SERVICE_HOSTPORT:localhost:8081}}
           predicates:
             - Path=/api/v1/auth/**
           filters:
@@ -50,7 +50,7 @@ spring:
                 name: authServiceCircuit
                 fallbackUri: forward:/fallback/service-unavailable
         - id: merchant-service
-          uri: ${MERCHANT_SERVICE_URL:http://localhost:8082}
+          uri: ${MERCHANT_SERVICE_URL:http://${MERCHANT_SERVICE_HOSTPORT:localhost:8082}}
           predicates:
             - Path=/api/v1/merchants/**,/api/v1/api-keys/**
           filters:
@@ -92,7 +92,7 @@ spring:
                 name: paymentServiceCircuit
                 fallbackUri: forward:/fallback/service-unavailable
         - id: refund-service
-          uri: ${REFUND_SERVICE_URL:http://localhost:8087}
+          uri: ${REFUND_SERVICE_URL:http://${REFUND_SERVICE_HOSTPORT:localhost:8087}}
           predicates:
             - Path=/api/v1/refunds/**
           filters:
@@ -102,7 +102,7 @@ spring:
                 redis-rate-limiter.replenishRate: 30
                 redis-rate-limiter.burstCapacity: 60
         - id: settlement-service
-          uri: ${SETTLEMENT_SERVICE_URL:http://localhost:8089}
+          uri: ${SETTLEMENT_SERVICE_URL:http://${SETTLEMENT_SERVICE_HOSTPORT:localhost:8089}}
           predicates:
             - Path=/api/v1/settlements/**
           filters:
