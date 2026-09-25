@@ -19,6 +19,9 @@ export function RegisterPage() {
     setError('');
     if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return; }
     if (form.password.length < 12) { setError('Password must be at least 12 characters'); return; }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(form.password)) {
+      setError('Password must contain lowercase, uppercase, and a digit'); return;
+    }
 
     setLoading(true);
     try {
