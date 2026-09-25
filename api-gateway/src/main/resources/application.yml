@@ -87,6 +87,20 @@ spring:
               args:
                 name: paymentServiceCircuit
                 fallbackUri: forward:/fallback/service-unavailable
+        - id: ledger-service
+          uri: ${LEDGER_SERVICE_URL:http://${LEDGER_SERVICE_HOSTPORT:localhost:8088}}
+          predicates:
+            - Path=/api/v1/ledger/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+            - name: CircuitBreaker
+              args:
+                name: ledgerServiceCircuit
+                fallbackUri: forward:/fallback/service-unavailable
         - id: provider-webhooks
           uri: ${PROVIDER_SERVICE_URL:http://${PROVIDER_SERVICE_HOSTPORT:localhost:8086}}
           predicates:
@@ -159,6 +173,7 @@ resilience4j:
       merchantServiceCircuit: { baseConfig: default }
       paymentServiceCircuit: { baseConfig: default }
       providerServiceCircuit: { baseConfig: default }
+      ledgerServiceCircuit: { baseConfig: default }
   timelimiter:
     configs:
       default:
