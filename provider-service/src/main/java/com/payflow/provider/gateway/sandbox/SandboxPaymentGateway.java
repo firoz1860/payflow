@@ -63,7 +63,7 @@ public class SandboxPaymentGateway implements PaymentGateway {
                 providerPaymentId, command.amount(), command.currency());
         GatewayPayment payment = new GatewayPayment(name(), providerPaymentId, GatewayStatus.PENDING,
                 command.amount(), command.currency(),
-                config.isAutoCapture() ? null : config.getCheckoutUrl() + "?payment=" + providerPaymentId,
+                null,
                 null, null, null, command.paymentMethod(), null, null, null, null);
         publishCreated(command, providerPaymentId);
         return payment;
