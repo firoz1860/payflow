@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
   max-http-request-header-size: 16KB
   netty:
     max-initial-line-length: 8192
