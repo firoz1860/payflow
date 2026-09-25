@@ -77,10 +77,6 @@ spring:
           uri: ${PAYMENT_SERVICE_URL:http://${PAYMENT_SERVICE_HOSTPORT:localhost:8085}}
           predicates:
             - Path=/api/v1/payments/**
-        - id: provider-webhooks
-          uri: ${PROVIDER_SERVICE_URL:http://${PROVIDER_SERVICE_HOSTPORT:localhost:8086}}
-          predicates:
-            - Path=/api/v1/provider-webhooks/**
           filters:
             - name: RequestRateLimiter
               args:
@@ -90,6 +86,20 @@ spring:
             - name: CircuitBreaker
               args:
                 name: paymentServiceCircuit
+                fallbackUri: forward:/fallback/service-unavailable
+        - id: provider-webhooks
+          uri: ${PROVIDER_SERVICE_URL:http://${PROVIDER_SERVICE_HOSTPORT:localhost:8086}}
+          predicates:
+            - Path=/api/v1/provider-webhooks/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+            - name: CircuitBreaker
+              args:
+                name: providerServiceCircuit
                 fallbackUri: forward:/fallback/service-unavailable
         - id: refund-service
           uri: ${REFUND_SERVICE_URL:http://${REFUND_SERVICE_HOSTPORT:localhost:8087}}
@@ -148,6 +158,7 @@ resilience4j:
       authServiceCircuit: { baseConfig: default }
       merchantServiceCircuit: { baseConfig: default }
       paymentServiceCircuit: { baseConfig: default }
+      providerServiceCircuit: { baseConfig: default }
   timelimiter:
     configs:
       default:
