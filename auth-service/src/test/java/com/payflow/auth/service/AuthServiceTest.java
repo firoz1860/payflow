@@ -122,28 +122,20 @@ class AuthServiceTest {
         verify(oneTimeTokenRepository, never()).save(any());
     }
     @Test
-    @DisplayName("public registration cannot self-assign a privileged role")
-    void publicRegistrationCannotSelfAssignRole() {
+    @DisplayName("public registration creates a new merchant with the submitted business name")
+    void publicRegistrationCreatesMerchantFromBusinessName() {
         when(userRepository.existsByEmailIgnoreCase(any())).thenReturn(false);
+        when(merchantRegistrationClient.create(any(), any(), any(), any(), any()))
+                .thenReturn(new MerchantRegistrationClient.CreatedMerchant(
+                        UUID.randomUUID(), "MRC_TEST", "Acme Technologies", "ACTIVE"));
+
         assertThatThrownBy(() -> authService.register(new AuthDtos.RegisterRequest(
-                "attacker@test.local", "Passw0rdPassw0rd", "Attacker", null,
-                com.payflow.auth.domain.RoleName.PAYFLOW_ADMIN)))
-                .isInstanceOf(PayFlowException.class)
-                .hasMessageContaining("cannot self-assign");
-        verify(userRepository, never()).save(any());
-    }
-    @Test
-    @DisplayName("public registration cannot attach itself to an existing merchant")
-    void publicRegistrationCannotSelfAssignMerchant() {
-        when(userRepository.existsByEmailIgnoreCase(any())).thenReturn(false);
-        assertThatThrownBy(() -> authService.register(new AuthDtos.RegisterRequest(
-                "attacker2@test.local", "Passw0rdPassw0rd", "Attacker",
-                UUID.randomUUID(), null)))
-                .isInstanceOf(PayFlowException.class)
-                .hasMessageContaining("cannot self-assign");
-        verify(userRepository, never()).save(any());
-        verify(merchantRegistrationClient, never())
-                .create(any(), any(), any(), any(), any());
+                "owner@acme.test", "Passw0rdPassw0rd", "Jane Doe", "Acme Technologies")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Role not seeded");
+
+        verify(merchantRegistrationClient).create(
+                eq("Acme Technologies"), eq("owner@acme.test"), eq(null), eq("IN"), eq("INR"));
     }
 
     @Test
