@@ -55,6 +55,8 @@ public class ProviderProperties {
     public static class Sandbox {
         private String webhookSecret = "sandbox-webhook-secret";
         private String checkoutUrl = "http://localhost:8086/sandbox/checkout";
+        private boolean autoCapture = false;
+        private long autoCaptureDelayMs = 5000;
         // Receiver identity baked into sandbox UPI QR payloads.
         private String upiVpa = "payflow.sandbox@upi";
         private String payeeName = "PayFlow Sandbox";
@@ -69,6 +71,18 @@ public class ProviderProperties {
         }
         public void setCheckoutUrl(String checkoutUrl) {
             this.checkoutUrl = checkoutUrl;
+        }
+        public boolean isAutoCapture() {
+            return autoCapture;
+        }
+        public void setAutoCapture(boolean autoCapture) {
+            this.autoCapture = autoCapture;
+        }
+        public long getAutoCaptureDelayMs() {
+            return autoCaptureDelayMs;
+        }
+        public void setAutoCaptureDelayMs(long autoCaptureDelayMs) {
+            this.autoCaptureDelayMs = autoCaptureDelayMs;
         }
         public String getUpiVpa() {
             return upiVpa;
