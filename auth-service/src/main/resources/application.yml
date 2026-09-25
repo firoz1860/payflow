@@ -61,7 +61,7 @@ payflow:
   internal:
     token: ${PAYFLOW_INTERNAL_TOKEN}
   services:
-    merchant-url: ${MERCHANT_SERVICE_URL:http://localhost:8082}
+    merchant-url: ${MERCHANT_SERVICE_URL:http://${MERCHANT_SERVICE_HOSTPORT:localhost:8082}}
   bootstrap:
     admin-email: ${PAYFLOW_ADMIN_EMAIL:}
     admin-password: ${PAYFLOW_ADMIN_PASSWORD:}
