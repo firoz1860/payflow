@@ -1,0 +1,45 @@
+name: Deploy PayFlow to Oracle Free VM
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: oracle-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_SSH_KEY: ${{ secrets.OCI_SSH_KEY }}
+        run: |
+          test -n "$OCI_HOST"
+          test -n "$OCI_SSH_KEY"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$OCI_SSH_KEY" > ~/.ssh/oracle
+          chmod 600 ~/.ssh/oracle
+          ssh-keyscan -H "$OCI_HOST" >> ~/.ssh/known_hosts
+
+      - name: Install host prerequisites
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          USER_NAME="${OCI_USER:-ubuntu}"
+          ssh -i ~/.ssh/oracle "$USER_NAME@$OCI_HOST" 'bash -s' < infrastructure/oracle/install.sh
+
+      - name: Deploy PayFlow
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+          VERCEL_ORIGIN: ${{ vars.PAYFLOW_VERCEL_ORIGIN }}
+        run: |
+          USER_NAME="${OCI_USER:-ubuntu}"
+          ORIGIN="${VERCEL_ORIGIN:-https://payflow-firozs-projects-70dbf044.vercel.app}"
+          ssh -i ~/.ssh/oracle "$USER_NAME@$OCI_HOST"             "PAYFLOW_PUBLIC_IP='$OCI_HOST' PAYFLOW_VERCEL_ORIGIN='$ORIGIN' bash -s"             < infrastructure/oracle/deploy.sh
