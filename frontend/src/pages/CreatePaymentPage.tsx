@@ -288,13 +288,20 @@ export function CreatePaymentPage() {
               </motion.div>
             )}
 
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <button onClick={() => setResult(null)} className="btn-secondary">
                 Create Another
               </button>
-              <button onClick={() => navigate(`/payments/${result.paymentReference}`)} className="btn-primary">
-                View Details <ArrowRight className="w-4 h-4" />
-              </button>
+              <div className="flex flex-wrap gap-2">
+                {result.qrCode && (
+                  <button onClick={() => navigate(`/payments/${result.paymentReference}/checkout`)} className="btn-secondary">
+                    <QrCode className="w-4 h-4" /> Open QR Checkout
+                  </button>
+                )}
+                <button onClick={() => navigate(`/payments/${result.paymentReference}`)} className="btn-primary">
+                  View Details <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
