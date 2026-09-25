@@ -1557,7 +1557,7 @@ Payment list and payment details
 API key management
 Merchant profile/settings
 Analytics derived from real Payment API data
-Merchant-safe ledger view
+Tenant-scoped read-only ledger accounts, postings, and entry details
 Provider/system monitoring
 Admin merchant management
 Admin role assignment
