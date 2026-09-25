@@ -1,4 +1,5 @@
 package com.payflow.auth.service;
+import com.payflow.auth.client.MerchantRegistrationClient;
 import com.payflow.auth.config.JwtProperties;
 import com.payflow.auth.domain.OneTimeToken;
 import com.payflow.auth.domain.RefreshToken;
@@ -35,11 +36,15 @@ public class AuthService {
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
     private final OutboxRecorder outbox;
+    private final MerchantRegistrationClient merchantRegistrationClient;
+    private final boolean autoVerifyEmail;
     public AuthService(UserRepository userRepository, RoleRepository roleRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        OneTimeTokenRepository oneTimeTokenRepository,
                        PasswordEncoder passwordEncoder, JwtService jwtService,
-                       JwtProperties jwtProperties, OutboxRecorder outbox) {
+                       JwtProperties jwtProperties, OutboxRecorder outbox,
+                       MerchantRegistrationClient merchantRegistrationClient,
+                       @org.springframework.beans.factory.annotation.Value("${payflow.bootstrap.auto-verify-email:false}") boolean autoVerifyEmail) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -48,6 +53,8 @@ public class AuthService {
         this.jwtService = jwtService;
         this.jwtProperties = jwtProperties;
         this.outbox = outbox;
+        this.merchantRegistrationClient = merchantRegistrationClient;
+        this.autoVerifyEmail = autoVerifyEmail;
     }
     @Transactional
     public AuthDtos.UserResponse register(AuthDtos.RegisterRequest request) {
@@ -55,23 +62,34 @@ public class AuthService {
         if (userRepository.existsByEmailIgnoreCase(email)) {
             throw PayFlowException.conflict(ErrorCode.CONFLICT, "Unable to register with the details provided");
         }
-        User user = new User(email, passwordEncoder.encode(request.password()),
-                request.fullName().trim(), request.merchantId());
         RoleName roleName = request.role() == null ? RoleName.MERCHANT_OWNER : request.role();
         if (roleName == RoleName.PAYFLOW_ADMIN) {
             throw PayFlowException.forbidden("PAYFLOW_ADMIN cannot be self-assigned");
         }
+        UUID merchantId = request.merchantId();
+        if (merchantId == null && roleName != RoleName.PAYFLOW_ADMIN) {
+            MerchantRegistrationClient.CreatedMerchant merchant = merchantRegistrationClient.create(
+                    request.fullName().trim(), email, null, "IN", "INR");
+            merchantId = merchant.id();
+        }
+        User user = new User(email, passwordEncoder.encode(request.password()),
+                request.fullName().trim(), merchantId);
         user.addRole(loadRole(roleName));
+        if (autoVerifyEmail) {
+            user.verifyEmail();
+        }
         userRepository.save(user);
-        String rawToken = issueOneTimeToken(user, OneTimeToken.Purpose.EMAIL_VERIFICATION,
-                jwtProperties.getEmailVerificationTtl());
-        outbox.record("User", user.getId().toString(), Topics.NOTIFICATION_REQUESTED, 1,
-                Map.of("template", "EMAIL_VERIFICATION",
-                        "channel", "EMAIL",
-                        "recipient", user.getEmail(),
-                        "variables", Map.of("fullName", user.getFullName(), "token", rawToken)));
+        if (!autoVerifyEmail) {
+            String rawToken = issueOneTimeToken(user, OneTimeToken.Purpose.EMAIL_VERIFICATION,
+                    jwtProperties.getEmailVerificationTtl());
+            outbox.record("User", user.getId().toString(), Topics.NOTIFICATION_REQUESTED, 1,
+                    Map.of("template", "EMAIL_VERIFICATION",
+                            "channel", "EMAIL",
+                            "recipient", user.getEmail(),
+                            "variables", Map.of("fullName", user.getFullName(), "token", rawToken)));
+        }
         recordAudit(user.getId(), "USER_REGISTERED", user.getId().toString());
-        log.info("Registered user {} with role {}", user.getId(), roleName);
+        log.info("Registered user {} with role {} merchantId {}", user.getId(), roleName, merchantId);
         return toResponse(user);
     }
     @Transactional

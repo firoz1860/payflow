@@ -36,4 +36,10 @@ public class InternalMerchantController {
             return ResponseEntity.notFound().build();
         }
     }
+    @PostMapping
+    public ResponseEntity<MerchantDtos.MerchantResponse> create(
+            @Valid @RequestBody MerchantDtos.CreateMerchantRequest request) {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(merchantService.createForRegistration(request));
+    }
 }

@@ -144,8 +144,10 @@ services:
       POSTGRES_DB: auth_db
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      MERCHANT_SERVICE_URL: http://merchant-service:8082
       PAYFLOW_ADMIN_EMAIL: ${PAYFLOW_ADMIN_EMAIL:-}
       PAYFLOW_ADMIN_PASSWORD: ${PAYFLOW_ADMIN_PASSWORD:-}
+      PAYFLOW_AUTO_VERIFY_EMAIL: ${PAYFLOW_AUTO_VERIFY_EMAIL:-true}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

@@ -60,9 +60,12 @@ payflow:
     lockout-duration: 15m
   internal:
     token: ${PAYFLOW_INTERNAL_TOKEN}
+  services:
+    merchant-url: ${MERCHANT_SERVICE_URL:http://localhost:8082}
   bootstrap:
     admin-email: ${PAYFLOW_ADMIN_EMAIL:}
     admin-password: ${PAYFLOW_ADMIN_PASSWORD:}
+    auto-verify-email: ${PAYFLOW_AUTO_VERIFY_EMAIL:true}
   outbox:
     enabled: true
     batch-size: 100

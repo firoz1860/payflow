@@ -31,12 +31,25 @@ public class MerchantService {
     }
     @Transactional
     public MerchantDtos.MerchantResponse create(MerchantDtos.CreateMerchantRequest request) {
+        return createInternal(request, false);
+    }
+
+    @Transactional
+    public MerchantDtos.MerchantResponse createForRegistration(MerchantDtos.CreateMerchantRequest request) {
+        return createInternal(request, true);
+    }
+
+    private MerchantDtos.MerchantResponse createInternal(MerchantDtos.CreateMerchantRequest request,
+                                                         boolean activateImmediately) {
         if (merchantRepository.existsByEmailIgnoreCase(request.email())) {
             throw PayFlowException.conflict(ErrorCode.CONFLICT,
                     "A merchant already exists for this email address");
         }
         Merchant merchant = new Merchant(generateMerchantCode(), request.businessName().trim(),
                 request.email(), request.phone(), request.country(), request.defaultCurrency());
+        if (activateImmediately) {
+            merchant.changeStatus(Merchant.Status.ACTIVE, "Self-registered");
+        }
         merchantRepository.save(merchant);
         outbox.record("Merchant", merchant.getId().toString(), Topics.NOTIFICATION_REQUESTED, 1,
                 Map.of("template", "MERCHANT_REGISTERED",
@@ -45,7 +58,7 @@ public class MerchantService {
                         "variables", Map.of("businessName", merchant.getBusinessName(),
                                 "merchantCode", merchant.getMerchantCode())));
         audit(null, merchant.getId(), "MERCHANT_CREATED", merchant.getId().toString());
-        log.info("Created merchant {} ({})", merchant.getMerchantCode(), merchant.getId());
+        log.info("Created merchant {} ({}) active={}", merchant.getMerchantCode(), merchant.getId(), activateImmediately);
         return toResponse(merchant);
     }
     @Transactional(readOnly = true)
