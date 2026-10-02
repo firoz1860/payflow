@@ -13,7 +13,7 @@ class CorsConfigTest {
 
     @Test
     void healthFailureRetainsCorsHeaders() {
-        var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/actuator/health")
+        var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("https://gateway.example/actuator/health")
                 .header("Origin", ORIGIN));
         new CorsConfig().corsWebFilter(ORIGIN).filter(exchange, request -> {
             request.getResponse().setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
@@ -25,7 +25,7 @@ class CorsConfigTest {
 
     @Test
     void registrationPreflightDoesNotCallDownstream() {
-        var exchange = MockServerWebExchange.from(MockServerHttpRequest.options("/api/v1/auth/register")
+        var exchange = MockServerWebExchange.from(MockServerHttpRequest.options("https://gateway.example/api/v1/auth/register")
                 .header("Origin", ORIGIN)
                 .header("Access-Control-Request-Method", "POST")
                 .header("Access-Control-Request-Headers", "Content-Type"));
@@ -36,7 +36,7 @@ class CorsConfigTest {
 
     @Test
     void unknownOriginIsRejected() {
-        var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/actuator/health")
+        var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("https://gateway.example/actuator/health")
                 .header("Origin", "https://untrusted.example"));
         new CorsConfig().corsWebFilter(ORIGIN).filter(exchange,
                 request -> Mono.error(new AssertionError("Untrusted origin reached downstream"))).block();
