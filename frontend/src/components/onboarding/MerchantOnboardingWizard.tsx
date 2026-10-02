@@ -123,6 +123,10 @@ export function MerchantOnboardingWizard({
       updateOnboarding('START')
         .then(onOnboardingChange)
         .catch((error) => toast('error', extractError(error)));
+    } else if (!tutorialMode && initialOnboarding.status === 'DISMISSED') {
+      updateOnboarding('RESUME')
+        .then(onOnboardingChange)
+        .catch((error) => toast('error', extractError(error)));
     }
   }, [open, tutorialMode]);
 
