@@ -27,6 +27,11 @@ export async function listApiKeys() {
   return res.data;
 }
 
+export async function updateApiKey(keyId: string, data: { label?: string }) {
+  const res = await api.patch<ApiKey>(`/merchants/me/api-keys/${keyId}`, data);
+  return res.data;
+}
+
 export async function revokeApiKey(keyId: string) {
   await api.delete(`/merchants/me/api-keys/${keyId}`);
 }
