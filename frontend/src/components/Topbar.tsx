@@ -84,16 +84,18 @@ export function Topbar() {
             </button>
             {helpOpen && (
               <div className="absolute right-0 top-11 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setHelpOpen(false);
-                    navigate('/dashboard?setup=guide');
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  <HelpCircle className="h-4 w-4 text-blue-600" /> Setup guide
-                </button>
+                {user?.roles.includes('MERCHANT_OWNER') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHelpOpen(false);
+                      navigate('/dashboard?setup=guide');
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <HelpCircle className="h-4 w-4 text-blue-600" /> Setup guide
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
