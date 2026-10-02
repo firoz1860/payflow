@@ -52,6 +52,7 @@ export function MerchantOnboardingWizard({
   const [keyError, setKeyError] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [secretPending, setSecretPending] = useState(false);
+  const [confirmSecretClose, setConfirmSecretClose] = useState(false);
   const [savingStep, setSavingStep] = useState(false);
   const [finished, setFinished] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -112,6 +113,7 @@ export function MerchantOnboardingWizard({
     if (!open) return;
     setFinished(false);
     setSecretPending(false);
+    setConfirmSecretClose(false);
     setDirection('forward');
     const initialStep = tutorialMode
       ? 1
@@ -167,12 +169,7 @@ export function MerchantOnboardingWizard({
     setStep((value) => value - 1);
   };
 
-  const requestClose = async () => {
-    if (secretPending) {
-      const saved = window.confirm("You won't be able to view this secret again. Have you saved it?\n\nCancel = Go back\nOK = I saved it, close");
-      if (!saved) return;
-      setSecretPending(false);
-    }
+  const dismissAndClose = async () => {
     if (tutorialMode || initialOnboarding.status === 'COMPLETED') {
       onClose();
       return;
@@ -187,6 +184,14 @@ export function MerchantOnboardingWizard({
     } finally {
       setSavingStep(false);
     }
+  };
+
+  const requestClose = async () => {
+    if (secretPending) {
+      setConfirmSecretClose(true);
+      return;
+    }
+    await dismissAndClose();
   };
 
   const finish = async () => {
@@ -238,6 +243,7 @@ export function MerchantOnboardingWizard({
   if (!user) return null;
 
   return (
+    <>
     <Modal
       open={open}
       onClose={requestClose}
@@ -439,6 +445,36 @@ export function MerchantOnboardingWizard({
         </div>
       )}
     </Modal>
+
+    <Modal
+      open={confirmSecretClose}
+      onClose={() => setConfirmSecretClose(false)}
+      title="Save your API key"
+      size="sm"
+    >
+      <div className="space-y-5">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+          You won't be able to view this secret again. Have you saved it?
+        </div>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={() => setConfirmSecretClose(false)} className="btn-secondary">
+            Go back
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              setSecretPending(false);
+              setConfirmSecretClose(false);
+              await dismissAndClose();
+            }}
+            className="btn-primary"
+          >
+            I saved it, close
+          </button>
+        </div>
+      </div>
+    </Modal>
+    </>
   );
 }
 
