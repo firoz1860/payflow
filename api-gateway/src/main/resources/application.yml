@@ -18,8 +18,8 @@ spring:
   cloud:
     gateway:
       httpclient:
-        connect-timeout: 1000
-        response-timeout: 10s
+        connect-timeout: ${PAYFLOW_GATEWAY_CONNECT_TIMEOUT_MS:10000}
+        response-timeout: ${PAYFLOW_GATEWAY_RESPONSE_TIMEOUT:35s}
       default-filters:
         - name: RequestSize
           args:
@@ -136,7 +136,7 @@ spring:
                 redis-rate-limiter.replenishRate: 10
                 redis-rate-limiter.burstCapacity: 20
         - id: webhook-service
-          uri: ${WEBHOOK_SERVICE_URL:http://${WEBHOOK_SERVICE_HOSTPORT:localhost:8091}}
+          uri: ${WEBHOOK_SERVICE_URL:forward:/fallback/not-implemented}
           predicates:
             - Path=/api/v1/webhook-endpoints/**
           filters:
@@ -177,7 +177,7 @@ resilience4j:
   timelimiter:
     configs:
       default:
-        timeoutDuration: 10s
+        timeoutDuration: ${PAYFLOW_GATEWAY_REQUEST_TIMEOUT:35s}
 management:
   endpoints:
     web:
