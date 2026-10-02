@@ -72,8 +72,8 @@ payflow:
     issuer: payflow-auth
   internal:
     token: ${PAYFLOW_INTERNAL_TOKEN}
-    response-timeout-ms: 3000
-    connect-timeout-ms: 1000
+    response-timeout-ms: ${PAYFLOW_INTERNAL_RESPONSE_TIMEOUT_MS:12000}
+    connect-timeout-ms: ${PAYFLOW_INTERNAL_CONNECT_TIMEOUT_MS:10000}
   services:
     merchant-url: ${MERCHANT_SERVICE_URL:http://${MERCHANT_SERVICE_HOSTPORT:localhost:8082}}
     provider-url: ${PROVIDER_SERVICE_URL:http://${PROVIDER_SERVICE_HOSTPORT:localhost:8086}}

@@ -38,8 +38,9 @@ public class InternalMerchantController {
     }
     @PostMapping
     public ResponseEntity<MerchantDtos.MerchantResponse> create(
-            @Valid @RequestBody MerchantDtos.CreateMerchantRequest request) {
+            @Valid @RequestBody MerchantDtos.CreateMerchantRequest request,
+            @org.springframework.web.bind.annotation.RequestHeader("X-Registration-Key") String registrationKey) {
         return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
-                .body(merchantService.createForRegistration(request));
+                .body(merchantService.createForRegistration(request, registrationKey));
     }
 }

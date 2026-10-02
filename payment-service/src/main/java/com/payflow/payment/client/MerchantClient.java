@@ -19,6 +19,8 @@ import java.util.UUID;
 public class MerchantClient {
     private static final Logger log = LoggerFactory.getLogger(MerchantClient.class);
     private final WebClient client;
+    @Value("${payflow.internal.response-timeout-ms:12000}")
+    private long responseTimeoutMs = 12000;
 
     public MerchantClient(ServiceClientFactory factory,
                            @Value("${payflow.services.merchant-url}") String merchantUrl) {
@@ -55,7 +57,7 @@ public class MerchantClient {
                 .uri("/internal/merchants/{merchantId}", merchantId)
                 .retrieve()
                 .bodyToMono(MerchantInfo.class)
-                .block(Duration.ofSeconds(3));
+                .block(Duration.ofMillis(responseTimeoutMs + 2000));
     }
 
     @SuppressWarnings("unused")

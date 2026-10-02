@@ -15,6 +15,8 @@ import java.util.Map;
 public class ProviderClient {
     private static final Logger log = LoggerFactory.getLogger(ProviderClient.class);
     private final WebClient client;
+    @Value("${payflow.internal.response-timeout-ms:12000}")
+    private long responseTimeoutMs = 12000;
     public ProviderClient(ServiceClientFactory factory,
                           @Value("${payflow.services.provider-url}") String providerUrl) {
         this.client = factory.create(providerUrl);
@@ -50,7 +52,7 @@ public class ProviderClient {
                 .bodyValue(request)
                 .retrieve()
                 .bodyToMono(ProviderPaymentResponse.class)
-                .block(Duration.ofSeconds(8));
+                .block(Duration.ofMillis(responseTimeoutMs + 2000));
     }
     @SuppressWarnings("unused")
     private ProviderPaymentResponse createPaymentFallback(CreateProviderPaymentRequest request,
@@ -67,6 +69,6 @@ public class ProviderClient {
                 .uri("/internal/providers/{provider}/payments/{id}", provider, providerPaymentId)
                 .retrieve()
                 .bodyToMono(ProviderPaymentResponse.class)
-                .block(Duration.ofSeconds(5));
+                .block(Duration.ofMillis(responseTimeoutMs + 2000));
     }
 }

@@ -125,7 +125,7 @@ class AuthServiceTest {
     @DisplayName("public registration creates a new merchant with the submitted business name")
     void publicRegistrationCreatesMerchantFromBusinessName() {
         when(userRepository.existsByEmailIgnoreCase(any())).thenReturn(false);
-        when(merchantRegistrationClient.create(any(), any(), any(), any(), any()))
+        when(merchantRegistrationClient.create(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new MerchantRegistrationClient.CreatedMerchant(
                         UUID.randomUUID(), "MRC_TEST", "Acme Technologies", "ACTIVE"));
 
@@ -135,7 +135,7 @@ class AuthServiceTest {
                 .hasMessageContaining("Role not seeded");
 
         verify(merchantRegistrationClient).create(
-                eq("Acme Technologies"), eq("owner@acme.test"), eq(null), eq("IN"), eq("INR"));
+                eq("Acme Technologies"), eq("owner@acme.test"), eq(null), eq("IN"), eq("INR"), eq("Passw0rdPassw0rd"));
     }
 
     @Test

@@ -64,7 +64,7 @@ public class AuthService {
         }
         RoleName roleName = RoleName.MERCHANT_OWNER;
         MerchantRegistrationClient.CreatedMerchant merchant = merchantRegistrationClient.create(
-                request.businessName().trim(), email, null, "IN", "INR");
+                request.businessName().trim(), email, null, "IN", "INR", request.password());
         UUID merchantId = merchant.id();
         User user = new User(email, passwordEncoder.encode(request.password()),
                 request.fullName().trim(), merchantId);

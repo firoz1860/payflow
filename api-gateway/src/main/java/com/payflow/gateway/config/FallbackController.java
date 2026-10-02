@@ -17,4 +17,12 @@ public class FallbackController {
                         "message", "The service is temporarily unavailable. Retry with the same Idempotency-Key.",
                         "timestamp", Instant.now().toString())));
     }
+    @RequestMapping("/fallback/not-implemented")
+    public Mono<ResponseEntity<Map<String, Object>>> notImplemented() {
+        return Mono.just(ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(Map.of(
+                "code", "NOT_IMPLEMENTED",
+                "message", "Merchant webhook endpoint management is not available in this deployment.",
+                "timestamp", Instant.now().toString())));
+    }
+
 }
