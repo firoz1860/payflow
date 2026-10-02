@@ -27,7 +27,7 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOriginPatterns: ${PAYFLOW_CORS_ORIGINS:https://dashboard.payflow.local,http://localhost:5173}
+            allowedOriginPatterns: ${PAYFLOW_CORS_ORIGINS:https://payflow-b5r1.vercel.app/,http://localhost:5173}
             allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
             allowedHeaders: [Authorization, Content-Type, Idempotency-Key, X-Correlation-Id]
             exposedHeaders: [X-Correlation-Id, X-RateLimit-Remaining]
