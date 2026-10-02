@@ -209,6 +209,40 @@ public class AuthService {
                 .map(this::toResponse)
                 .orElseThrow(() -> PayFlowException.notFound("User not found"));
     }
+    @Transactional(readOnly = true)
+    public AuthDtos.UserOnboardingResponse currentOnboarding(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> PayFlowException.notFound("User not found"));
+        return toOnboardingResponse(user);
+    }
+    @Transactional
+    public AuthDtos.UserOnboardingResponse updateOnboarding(
+            UUID userId, AuthDtos.UpdateOnboardingRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> PayFlowException.notFound("User not found"));
+        if (!user.roleNames().contains(RoleName.MERCHANT_OWNER.name())) {
+            throw PayFlowException.forbidden("Merchant onboarding is only available to merchant owners");
+        }
+        switch (request.action()) {
+            case START -> user.startOnboarding();
+            case ADVANCE -> {
+                if (request.step() == null) {
+                    throw PayFlowException.badRequest(
+                            ErrorCode.VALIDATION_FAILED, "step is required for ADVANCE");
+                }
+                try {
+                    user.updateOnboardingStep(request.step());
+                } catch (IllegalArgumentException ex) {
+                    throw PayFlowException.badRequest(ErrorCode.VALIDATION_FAILED, ex.getMessage());
+                }
+            }
+            case DISMISS -> user.dismissOnboarding();
+            case RESUME -> user.resumeOnboarding();
+            case COMPLETE -> user.completeOnboarding();
+        }
+        recordAudit(user.getId(), "ONBOARDING_" + request.action().name(), user.getId().toString());
+        return toOnboardingResponse(user);
+    }
     private AuthDtos.TokenResponse issueTokens(User user, UUID familyId, String userAgent, String ip) {
         String rawRefresh = Hashing.randomToken(48);
         refreshTokenRepository.save(new RefreshToken(
@@ -247,9 +281,17 @@ public class AuthService {
                         "entityType", "User",
                         "entityId", entityId));
     }
+    private AuthDtos.UserOnboardingResponse toOnboardingResponse(User user) {
+        return new AuthDtos.UserOnboardingResponse(
+                user.getOnboardingStatus().name(),
+                user.getOnboardingLastStep(),
+                user.getOnboardingDismissedAt(),
+                user.getOnboardingCompletedAt());
+    }
     private AuthDtos.UserResponse toResponse(User user) {
         return new AuthDtos.UserResponse(user.getId(), user.getEmail(), user.getFullName(),
                 user.getMerchantId(), user.getStatus().name(), user.isEmailVerified(),
-                user.roleNames(), user.permissionValues(), user.getCreatedAt());
+                user.roleNames(), user.permissionValues(), user.getCreatedAt(),
+                toOnboardingResponse(user));
     }
 }
