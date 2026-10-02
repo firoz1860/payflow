@@ -1,6 +1,8 @@
 package com.payflow.merchant.integration;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import com.payflow.common.outbox.OutboxPublisher;
@@ -12,7 +14,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE,
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK,
         properties = "payflow.outbox.enabled=true")
 @Testcontainers
 @ActiveProfiles("test")
@@ -21,6 +23,9 @@ class SchemaValidationIT {
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+
+    @MockBean
+    StringRedisTemplate redis;
 
     @Autowired
     ApplicationContext context;
