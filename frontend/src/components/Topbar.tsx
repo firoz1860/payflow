@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, Search, ShieldCheck, User } from 'lucide-react';
+import { Bell, BookOpen, ChevronDown, HelpCircle, Search, ShieldCheck, User } from 'lucide-react';
 import { useAuthStore } from '../store/auth';
 
 const titleByPath: Record<string, string> = {
@@ -26,6 +26,7 @@ export function Topbar() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const [query, setQuery] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const title = useMemo(() => {
     if (location.pathname.startsWith('/payments/') && !['/payments/create', '/payments/qr'].includes(location.pathname)) {
@@ -69,6 +70,43 @@ export function Topbar() {
               className="w-44 rounded-xl border border-slate-200/80 bg-slate-50/80 py-2 pl-9 pr-3 text-xs text-slate-700 outline-none transition focus:w-56 focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-500/10 md:w-52"
             />
           </form>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setHelpOpen((value) => !value)}
+              aria-label="Help"
+              aria-expanded={helpOpen}
+              className="rounded-xl border border-slate-200/80 bg-white/80 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-blue-700"
+              title="Help"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
+            {helpOpen && (
+              <div className="absolute right-0 top-11 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHelpOpen(false);
+                    navigate('/dashboard?setup=guide');
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <HelpCircle className="h-4 w-4 text-blue-600" /> Setup guide
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHelpOpen(false);
+                    navigate('/developers');
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <BookOpen className="h-4 w-4 text-blue-600" /> Developer documentation
+                </button>
+              </div>
+            )}
+          </div>
 
           {isAdmin() && (
             <button
