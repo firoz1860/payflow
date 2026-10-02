@@ -14,6 +14,8 @@ import java.util.Map;
 public class MerchantApiKeyVerifier implements ApiKeyVerifier {
     private static final Logger log = LoggerFactory.getLogger(MerchantApiKeyVerifier.class);
     private final WebClient client;
+    @Value("${payflow.internal.response-timeout-ms:12000}")
+    private long responseTimeoutMs = 12000;
     public MerchantApiKeyVerifier(ServiceClientFactory factory,
                                   @Value("${payflow.services.merchant-url}") String merchantUrl) {
         this.client = factory.create(merchantUrl);
@@ -26,7 +28,7 @@ public class MerchantApiKeyVerifier implements ApiKeyVerifier {
                 .bodyValue(Map.of("apiKey", rawApiKey))
                 .retrieve()
                 .bodyToMono(Verification.class)
-                .block(Duration.ofSeconds(3));
+                .block(Duration.ofMillis(responseTimeoutMs + 2000));
     }
     @SuppressWarnings("unused")
     private Verification verifyFallback(String rawApiKey, Throwable throwable) {
