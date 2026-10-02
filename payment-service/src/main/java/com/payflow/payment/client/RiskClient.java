@@ -46,7 +46,7 @@ public class RiskClient {
                 .block(Duration.ofSeconds(2));
     }
     @SuppressWarnings("unused")
-    private RiskResponse evaluateFallback(RiskRequest request, Throwable throwable) {
+    public RiskResponse evaluateFallback(RiskRequest request, Throwable throwable) {
         boolean withinCeiling = request.amount().compareTo(failOpenCeiling) <= 0;
         log.warn("Risk service unavailable for {} ({} {}): failing {}",
                 request.paymentReference(), request.amount(), request.currency(),
