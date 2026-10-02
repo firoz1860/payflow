@@ -124,7 +124,7 @@ export function MerchantOnboardingWizard({
         .then(onOnboardingChange)
         .catch((error) => toast('error', extractError(error)));
     }
-  }, [open, tutorialMode, initialOnboarding.status, initialOnboarding.lastStep, loadData, onOnboardingChange]);
+  }, [open, tutorialMode]);
 
   const businessReady = !!merchant?.businessName && !!merchant?.merchantCode &&
     !!merchant?.email && !!merchant?.country && !!merchant?.defaultCurrency;
