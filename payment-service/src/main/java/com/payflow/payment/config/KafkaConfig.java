@@ -16,13 +16,15 @@ import org.springframework.util.backoff.ExponentialBackOff;
 public class KafkaConfig {
     private static final Logger log = LoggerFactory.getLogger(KafkaConfig.class);
     @Bean
-    public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, String> kafkaTemplate) {
+    public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, String> kafkaTemplate,
+            @org.springframework.beans.factory.annotation.Value("${payflow.kafka.dead-letter-topic:}") String deadLetterTopic) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
                 (record, exception) -> {
                     log.error("Dead-lettering record from {} partition {} offset {}",
                             record.topic(), record.partition(), record.offset(), exception);
                     return new org.apache.kafka.common.TopicPartition(
-                            record.topic() + ".DLT", record.partition());
+                            deadLetterTopic.isBlank() ? record.topic() + ".DLT" : deadLetterTopic,
+                            deadLetterTopic.isBlank() ? record.partition() : 0);
                 });
         ExponentialBackOff backOff = new ExponentialBackOff(1000L, 2.0);
         backOff.setMaxElapsedTime(30_000L);
