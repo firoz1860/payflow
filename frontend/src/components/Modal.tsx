@@ -1,4 +1,4 @@
-import { useEffect, useRef, ReactNode } from 'react';
+import { useEffect, useId, useRef, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -14,6 +14,7 @@ interface ModalProps {
 
 export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
@@ -75,7 +76,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
-          aria-labelledby="payflow-modal-title"
+          aria-labelledby={titleId}
           initial={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.96, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 12 }}
@@ -83,7 +84,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
           className={cn('relative w-full bg-white rounded-xl shadow-xl border border-slate-200', sizes[size])}
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-            <h2 id="payflow-modal-title" className="text-lg font-semibold text-slate-900">{title}</h2>
+            <h2 id={titleId} className="text-lg font-semibold text-slate-900">{title}</h2>
             <button
               aria-label="Close dialog"
               onClick={onClose}
