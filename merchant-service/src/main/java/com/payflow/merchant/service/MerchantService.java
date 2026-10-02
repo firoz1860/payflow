@@ -31,16 +31,25 @@ public class MerchantService {
     }
     @Transactional
     public MerchantDtos.MerchantResponse create(MerchantDtos.CreateMerchantRequest request) {
-        return createInternal(request, false);
+        return createInternal(request, false, null);
     }
 
     @Transactional
-    public MerchantDtos.MerchantResponse createForRegistration(MerchantDtos.CreateMerchantRequest request) {
-        return createInternal(request, true);
+    public MerchantDtos.MerchantResponse createForRegistration(MerchantDtos.CreateMerchantRequest request, String registrationKey) {
+        return createInternal(request, true, registrationKey);
     }
 
     private MerchantDtos.MerchantResponse createInternal(MerchantDtos.CreateMerchantRequest request,
-                                                         boolean activateImmediately) {
+                                                         boolean activateImmediately, String registrationKey) {
+        if (activateImmediately) {
+            if (registrationKey == null || !registrationKey.matches("[a-f0-9]{64}")) {
+                throw PayFlowException.badRequest(ErrorCode.VALIDATION_FAILED, "Registration key is required");
+            }
+            var existing = merchantRepository.findByRegistrationKey(registrationKey);
+            if (existing.isPresent()) {
+                return toResponse(existing.get());
+            }
+        }
         if (merchantRepository.existsByEmailIgnoreCase(request.email())) {
             throw PayFlowException.conflict(ErrorCode.CONFLICT,
                     "A merchant already exists for this email address");
@@ -50,6 +59,7 @@ public class MerchantService {
         if (activateImmediately) {
             merchant.changeStatus(Merchant.Status.ACTIVE, "Self-registered");
         }
+        merchant.setRegistrationKey(registrationKey);
         merchantRepository.save(merchant);
         outbox.record("Merchant", merchant.getId().toString(), Topics.NOTIFICATION_REQUESTED, 1,
                 Map.of("template", "MERCHANT_REGISTERED",
