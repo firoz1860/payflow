@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   TrendingUp, DollarSign, CreditCard, CheckCircle2, Clock, ArrowUpRight, Plus,
   Mail, AlertCircle,
@@ -9,7 +9,8 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import { listPayments } from '../services/paymentService';
-import { getMyMerchant } from '../services/merchantService';
+import { getMyMerchant, listApiKeys } from '../services/merchantService';
+import { getOnboarding } from '../services/onboardingService';
 import { useAuthStore } from '../store/auth';
 import { PageHeader } from '../components/PageHeader';
 import { CardSpinner, EmptyState } from '../components/Spinner';
@@ -17,7 +18,9 @@ import { StatusBadge } from '../components/StatusBadge';
 import { formatCurrency, timeAgo } from '../lib/utils';
 import { StaggerContainer, StaggerItem, AnimatedNumber } from '../lib/motion';
 import { motion } from 'framer-motion';
-import type { Payment, Merchant } from '../types';
+import { MerchantOnboardingWizard } from '../components/onboarding/MerchantOnboardingWizard';
+import { OnboardingResumeCard } from '../components/onboarding/OnboardingResumeCard';
+import type { Payment, Merchant, ApiKey, UserOnboarding } from '../types';
 
 const COLORS = {
   CAPTURED: '#10b981', PENDING: '#f59e0b', PROCESSING: '#3b82f6',
@@ -26,25 +29,75 @@ const COLORS = {
 };
 
 export function DashboardPage() {
-  const { user } = useAuthStore();
+  const { user, setUser, hasPermission } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [merchant, setMerchant] = useState<Merchant | null>(null);
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [tutorialMode, setTutorialMode] = useState(false);
+  const [setupCardVisible, setSetupCardVisible] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+    const owner = !!user?.roles.includes('MERCHANT_OWNER');
     Promise.all([
       listPayments({ page: 0, size: 100 }).catch(() => ({ data: [] })),
       getMyMerchant().catch(() => null),
-    ]).then(([page, merch]) => {
+      hasPermission('api_keys:manage') ? listApiKeys().catch(() => []) : Promise.resolve([]),
+      owner ? getOnboarding().catch(() => user?.onboarding ?? null) : Promise.resolve(user?.onboarding ?? null),
+    ]).then(([page, merch, keys, onboarding]) => {
+      if (cancelled) return;
       setPayments(page.data || []);
       setMerchant(merch);
-    }).finally(() => setLoading(false));
-  }, []);
+      setApiKeys(keys);
+      if (user && onboarding) {
+        setUser({ ...user, onboarding });
+        if (owner && onboarding.status === 'NOT_STARTED') {
+          setTutorialMode(false);
+          setWizardOpen(true);
+        }
+      }
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (searchParams.get('setup') === 'guide' && user?.roles.includes('MERCHANT_OWNER')) {
+      setTutorialMode(true);
+      setWizardOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams, user?.roles]);
+
+  const updateUserOnboarding = (onboarding: UserOnboarding) => {
+    const current = useAuthStore.getState().user;
+    if (current) setUser({ ...current, onboarding });
+  };
+
+  const closeWizard = async () => {
+    setWizardOpen(false);
+    setTutorialMode(false);
+    if (hasPermission('api_keys:manage')) {
+      listApiKeys().then(setApiKeys).catch(() => undefined);
+    }
+  };
 
   const stats = computeStats(payments);
   const chartData = buildChartData(payments);
   const statusBreakdown = buildStatusBreakdown(payments);
   const currency = merchant?.defaultCurrency || 'INR';
+  const isMerchantOwner = !!user?.roles.includes('MERCHANT_OWNER');
+  const onboarding = user?.onboarding;
+  const setupMilestones = {
+    business: !!merchant?.businessName && !!merchant?.merchantCode && !!merchant?.email && !!merchant?.country && !!merchant?.defaultCurrency,
+    apiKey: apiKeys.some((key) => key.environment === 'TEST' && key.keyType === 'SECRET' && key.status === 'ACTIVE'),
+    payment: payments.length > 0,
+    finished: onboarding?.status === 'COMPLETED',
+  };
 
   if (loading) return <CardSpinner />;
 
@@ -72,6 +125,17 @@ export function DashboardPage() {
           </div>
           <Mail className="w-5 h-5 text-amber-400 flex-shrink-0" />
         </motion.div>
+      )}
+
+      {isMerchantOwner && onboarding && onboarding.status !== 'COMPLETED' && setupCardVisible && (
+        <OnboardingResumeCard
+          milestones={setupMilestones}
+          onContinue={() => {
+            setTutorialMode(false);
+            setWizardOpen(true);
+          }}
+          onDismissView={() => setSetupCardVisible(false)}
+        />
       )}
 
       <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -215,6 +279,16 @@ export function DashboardPage() {
             action={<Link to="/payments/create" className="btn-primary"><Plus className="w-4 h-4" /> Create Payment</Link>} />
         )}
       </motion.div>
+
+      {isMerchantOwner && onboarding && (
+        <MerchantOnboardingWizard
+          open={wizardOpen}
+          initialOnboarding={onboarding}
+          tutorialMode={tutorialMode}
+          onClose={closeWizard}
+          onOnboardingChange={updateUserOnboarding}
+        />
+      )}
     </>
   );
 }

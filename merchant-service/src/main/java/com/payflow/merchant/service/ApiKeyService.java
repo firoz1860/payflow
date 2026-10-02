@@ -176,6 +176,30 @@ public class ApiKeyService {
                 .toList();
     }
     @Transactional
+    public MerchantDtos.ApiKeyResponse update(UUID merchantId, String keyId, UUID actorId,
+                                              MerchantDtos.UpdateApiKeyRequest request) {
+        ApiKey apiKey = apiKeyRepository.findByKeyId(keyId)
+                .orElseThrow(() -> PayFlowException.notFound("API key not found"));
+        if (!apiKey.getMerchantId().equals(merchantId)) {
+            throw PayFlowException.notFound("API key not found");
+        }
+        try {
+            apiKey.updateLabel(request.label());
+        } catch (IllegalArgumentException ex) {
+            throw PayFlowException.badRequest(ErrorCode.VALIDATION_FAILED, ex.getMessage());
+        }
+        outbox.record("ApiKey", keyId, Topics.AUDIT_EVENT, 1, merchantId.toString(),
+                Map.of("actorType", "USER",
+                        "actorId", actorId == null ? "system" : actorId.toString(),
+                        "merchantId", merchantId.toString(),
+                        "action", "API_KEY_UPDATED",
+                        "entityType", "ApiKey",
+                        "entityId", keyId,
+                        "metadata", Map.of("label", apiKey.getLabel() == null ? "" : apiKey.getLabel())));
+        log.info("Updated API key label {} for merchant {}", keyId, merchantId);
+        return toResponse(apiKey);
+    }
+    @Transactional
     public void revoke(UUID merchantId, String keyId, UUID actorId) {
         ApiKey apiKey = apiKeyRepository.findByKeyId(keyId)
                 .orElseThrow(() -> PayFlowException.notFound("API key not found"));

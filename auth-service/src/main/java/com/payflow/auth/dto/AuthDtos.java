@@ -36,6 +36,25 @@ public final class AuthDtos {
             UserResponse user
     ) {
     }
+    public record UserOnboardingResponse(
+            String status,
+            int lastStep,
+            Instant dismissedAt,
+            Instant completedAt
+    ) {
+    }
+    public enum OnboardingAction {
+        START,
+        ADVANCE,
+        DISMISS,
+        RESUME,
+        COMPLETE
+    }
+    public record UpdateOnboardingRequest(
+            @NotNull OnboardingAction action,
+            Integer step
+    ) {
+    }
     public record UserResponse(
             UUID id,
             String email,
@@ -45,7 +64,8 @@ public final class AuthDtos {
             boolean emailVerified,
             Set<String> roles,
             Set<String> permissions,
-            Instant createdAt
+            Instant createdAt,
+            UserOnboardingResponse onboarding
     ) {
     }
     public record PasswordResetInitiateRequest(@NotBlank @Email String email) {

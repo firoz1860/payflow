@@ -2,6 +2,8 @@ package com.payflow.auth.service;
 import com.payflow.auth.client.MerchantRegistrationClient;
 import com.payflow.auth.config.JwtProperties;
 import com.payflow.auth.domain.RefreshToken;
+import com.payflow.auth.domain.Role;
+import com.payflow.auth.domain.RoleName;
 import com.payflow.auth.domain.User;
 import com.payflow.auth.dto.AuthDtos;
 import com.payflow.auth.repository.OneTimeTokenRepository;
@@ -31,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
@@ -59,6 +62,14 @@ class AuthServiceTest {
         User user = new User("owner@test.local", passwordEncoder.encode(password),
                 "Owner", UUID.randomUUID());
         user.verifyEmail();
+        return user;
+    }
+    private User merchantOwner() {
+        User user = activeUser("CorrectPassw0rd");
+        Role role = mock(Role.class);
+        when(role.getName()).thenReturn(RoleName.MERCHANT_OWNER);
+        when(role.getPermissions()).thenReturn(java.util.Set.of());
+        user.addRole(role);
         return user;
     }
     @Test
@@ -174,6 +185,77 @@ class AuthServiceTest {
 
         verify(roleRepository, never())
                 .findByName(com.payflow.auth.domain.RoleName.MERCHANT_DEVELOPER);
+    }
+
+    @Test
+    @DisplayName("new users start onboarding at NOT_STARTED step 1")
+    void newUserStartsOnboardingNotStarted() {
+        User user = new User("new-owner@test.local", passwordEncoder.encode("CorrectPassw0rd"),
+                "New Owner", UUID.randomUUID());
+        assertThat(user.getOnboardingStatus()).isEqualTo(User.OnboardingStatus.NOT_STARTED);
+        assertThat(user.getOnboardingLastStep()).isEqualTo(1);
+        assertThat(user.getOnboardingCompletedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("merchant owner onboarding dismiss, resume and completion persist on the entity")
+    void merchantOwnerOnboardingLifecyclePersists() {
+        User user = merchantOwner();
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        var started = authService.updateOnboarding(user.getId(),
+                new AuthDtos.UpdateOnboardingRequest(AuthDtos.OnboardingAction.START, null));
+        assertThat(started.status()).isEqualTo("IN_PROGRESS");
+
+        var advanced = authService.updateOnboarding(user.getId(),
+                new AuthDtos.UpdateOnboardingRequest(AuthDtos.OnboardingAction.ADVANCE, 3));
+        assertThat(advanced.lastStep()).isEqualTo(3);
+
+        var dismissed = authService.updateOnboarding(user.getId(),
+                new AuthDtos.UpdateOnboardingRequest(AuthDtos.OnboardingAction.DISMISS, null));
+        assertThat(dismissed.status()).isEqualTo("DISMISSED");
+        assertThat(dismissed.dismissedAt()).isNotNull();
+
+        var resumed = authService.updateOnboarding(user.getId(),
+                new AuthDtos.UpdateOnboardingRequest(AuthDtos.OnboardingAction.RESUME, null));
+        assertThat(resumed.status()).isEqualTo("IN_PROGRESS");
+        assertThat(resumed.dismissedAt()).isNull();
+
+        var completed = authService.updateOnboarding(user.getId(),
+                new AuthDtos.UpdateOnboardingRequest(AuthDtos.OnboardingAction.COMPLETE, null));
+        assertThat(completed.status()).isEqualTo("COMPLETED");
+        assertThat(completed.lastStep()).isEqualTo(5);
+        assertThat(completed.completedAt()).isNotNull();
+
+        assertThat(authService.currentOnboarding(user.getId()).status()).isEqualTo("COMPLETED");
+    }
+
+    @Test
+    @DisplayName("non-owner platform users are not allowed into merchant onboarding")
+    void platformAdminIsNotForcedThroughMerchantOnboarding() {
+        User user = activeUser("CorrectPassw0rd");
+        Role role = mock(Role.class);
+        when(role.getName()).thenReturn(RoleName.PAYFLOW_ADMIN);
+        when(role.getPermissions()).thenReturn(java.util.Set.of());
+        user.addRole(role);
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> authService.updateOnboarding(user.getId(),
+                new AuthDtos.UpdateOnboardingRequest(AuthDtos.OnboardingAction.START, null)))
+                .isInstanceOf(PayFlowException.class)
+                .hasMessageContaining("merchant owners");
+    }
+
+    @Test
+    @DisplayName("onboarding advance validates the persisted step range")
+    void onboardingStepRangeIsValidated() {
+        User user = merchantOwner();
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> authService.updateOnboarding(user.getId(),
+                new AuthDtos.UpdateOnboardingRequest(AuthDtos.OnboardingAction.ADVANCE, 6)))
+                .isInstanceOf(PayFlowException.class)
+                .hasMessageContaining("between 1 and 5");
     }
 
     private String catchMessage(Runnable action) {

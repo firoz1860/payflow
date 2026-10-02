@@ -1,3 +1,12 @@
+export type OnboardingStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'DISMISSED' | 'COMPLETED';
+
+export interface UserOnboarding {
+  status: OnboardingStatus;
+  lastStep: number;
+  dismissedAt: string | null;
+  completedAt: string | null;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -8,6 +17,7 @@ export interface User {
   roles: string[];
   permissions: string[];
   createdAt: string;
+  onboarding: UserOnboarding;
 }
 
 export interface TokenResponse {

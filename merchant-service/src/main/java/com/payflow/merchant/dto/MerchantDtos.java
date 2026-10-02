@@ -78,6 +78,10 @@ public final class MerchantDtos {
             String warning
     ) {
     }
+    public record UpdateApiKeyRequest(
+            @Size(max = 120) String label
+    ) {
+    }
     public record ApiKeyResponse(
             String keyId,
             String maskedKey,
