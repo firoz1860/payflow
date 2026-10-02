@@ -157,3 +157,7 @@ export interface ApiError {
 export type PaymentMethod = 'CARD' | 'UPI' | 'QR' | 'NET_BANKING' | 'WALLET';
 export type RoleName = 'PAYFLOW_ADMIN' | 'MERCHANT_OWNER' | 'MERCHANT_DEVELOPER' | 'MERCHANT_FINANCE' | 'MERCHANT_SUPPORT';
 export type MerchantStatus = 'ACTIVE' | 'SUSPENDED' | 'BLOCKED' | 'PENDING';
+
+export interface CheckoutOptions {
+  provider: 'razorpay'; mode: 'TEST'; keyId: string; orderId: string; amountMinor: number; currency: string;
+}

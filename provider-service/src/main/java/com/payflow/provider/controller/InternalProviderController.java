@@ -13,13 +13,33 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import java.math.BigDecimal;
 import java.util.Map;
+import org.springframework.beans.factory.ObjectProvider;
+import com.payflow.provider.gateway.razorpay.RazorpayCheckoutService;
+import com.payflow.provider.gateway.razorpay.RazorpayCheckoutDtos;
+import com.payflow.common.error.PayFlowException;
 @RestController
 @RequestMapping("/internal/providers")
 @Hidden
 public class InternalProviderController {
     private final PaymentGatewayRegistry registry;
-    public InternalProviderController(PaymentGatewayRegistry registry) {
+    private final ObjectProvider<RazorpayCheckoutService> checkout;
+    public InternalProviderController(PaymentGatewayRegistry registry, ObjectProvider<RazorpayCheckoutService> checkout) {
         this.registry = registry;
+        this.checkout = checkout;
+    }
+    private RazorpayCheckoutService checkout() {
+        RazorpayCheckoutService service = checkout.getIfAvailable();
+        if (service == null) throw PayFlowException.forbidden("Razorpay TEST checkout is not configured");
+        return service;
+    }
+    @GetMapping("/razorpay/orders/{orderId}/checkout")
+    public RazorpayCheckoutDtos.CheckoutOptions checkout(@PathVariable String orderId) { return checkout().checkout(orderId); }
+    @PostMapping("/razorpay/verify")
+    public RazorpayCheckoutDtos.VerifiedPayment verify(@RequestBody RazorpayCheckoutDtos.VerificationRequest request) { return checkout().verify(request); }
+    @GetMapping("/razorpay/orders/{orderId}/reconcile")
+    public ResponseEntity<RazorpayCheckoutDtos.VerifiedPayment> reconcile(@PathVariable String orderId) {
+        var result = checkout().reconcile(orderId);
+        return result == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(result);
     }
     public record CreatePaymentRequest(
             @NotNull String paymentReference,

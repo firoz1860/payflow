@@ -31,7 +31,11 @@ public class ProviderEventConsumer {
         try {
             JsonNode envelope = objectMapper.readTree(record.value());
             JsonNode data = envelope.path("data");
-            paymentService.applyProviderStatus(
+            if ("razorpay".equals(text(data, "provider"))) {
+                paymentService.applyVerifiedProviderStatus("razorpay", text(data,"providerPaymentId"), text(data,"providerEntityPaymentId"),
+                    data.hasNonNull("amountMinor") ? data.path("amountMinor").asLong() : null, text(data,"currency"), text(data,"status"),
+                    text(data,"failureCode"), text(data,"failureMessage"), text(data,"instrumentToken"), text(data,"cardLast4"), text(data,"cardNetwork"), parseMethod(text(data,"paymentMethod")));
+            } else paymentService.applyProviderStatus(
                     text(data, "provider"),
                     text(data, "providerPaymentId"),
                     text(data, "status"),

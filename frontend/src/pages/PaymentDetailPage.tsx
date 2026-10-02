@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { RazorpayCheckout } from '../components/RazorpayCheckout';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Copy, CheckCircle2, XCircle, Clock, QrCode, RefreshCw, XCircle as Cancel,
@@ -16,6 +17,8 @@ import type { Payment } from '../types';
 
 export function PaymentDetailPage() {
   const { reference } = useParams<{ reference: string }>();
+  const pollDeadline = useRef(Date.now() + 60000);
+  useEffect(() => { pollDeadline.current = Date.now() + 60000; }, [reference]);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -38,10 +41,18 @@ export function PaymentDetailPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (!payment || !['CREATED', 'PENDING', 'PROCESSING'].includes(payment.status)) return;
-    const interval = setInterval(() => { load(); }, 5000);
-    return () => clearInterval(interval);
-  }, [payment, load]);
+    if (!payment || !['CREATED', 'PENDING', 'PROCESSING', 'AUTHORIZED'].includes(payment.status) || Date.now() >= pollDeadline.current) return;
+    let active = true; let fetching = false;
+    const interval = setInterval(async () => {
+      if (Date.now() >= pollDeadline.current) { clearInterval(interval); return; }
+      if (fetching) return;
+      fetching = true;
+      try { const updated = await getPayment(payment.paymentReference); if (active) setPayment(updated); }
+      catch { /* Manual refresh remains available. */ }
+      finally { fetching = false; }
+    }, 5000);
+    return () => { active = false; clearInterval(interval); };
+  }, [payment?.status, reference]);
 
   const copyRef = () => {
     navigator.clipboard.writeText(reference || '');
@@ -68,7 +79,7 @@ export function PaymentDetailPage() {
   if (loading) return <CardSpinner />;
   if (!payment) return <EmptyState icon={<XCircle className="w-6 h-6" />} title="Payment not found" />;
 
-  const canCancel = ['CREATED', 'PENDING', 'PROCESSING', 'AUTHORIZED'].includes(payment.status);
+  const canCancel = payment.provider !== 'razorpay' && ['CREATED', 'PENDING', 'PROCESSING', 'AUTHORIZED'].includes(payment.status);
   const isPending = ['CREATED', 'PENDING', 'PROCESSING'].includes(payment.status);
 
   return (
@@ -207,7 +218,10 @@ export function PaymentDetailPage() {
             </motion.div>
           )}
 
-          {payment.checkoutUrl && (
+          {payment.provider === 'razorpay' && payment.environment === 'TEST' && ['PENDING', 'PROCESSING', 'AUTHORIZED'].includes(payment.status) && !payment.qrCode && (
+            <RazorpayCheckout key={payment.paymentReference} paymentReference={payment.paymentReference} onUpdated={setPayment} />
+          )}
+          {payment.checkoutUrl && payment.provider !== 'razorpay' && (
             <motion.div
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15, duration: 0.4 }}
               className="card p-6"

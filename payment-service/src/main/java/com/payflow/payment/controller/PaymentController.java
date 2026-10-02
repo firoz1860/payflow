@@ -12,6 +12,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import com.payflow.payment.service.PaymentCheckoutService;
+import com.payflow.payment.dto.CheckoutDtos;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -35,9 +37,11 @@ public class PaymentController {
     private final IdempotencyService idempotencyService;
     private final ObjectMapper objectMapper;
     private final MerchantClient merchantClient;
+    private final PaymentCheckoutService checkoutService;
     public PaymentController(PaymentService paymentService, IdempotencyService idempotencyService,
-                             ObjectMapper objectMapper, MerchantClient merchantClient) {
+                             ObjectMapper objectMapper, MerchantClient merchantClient, PaymentCheckoutService checkoutService) {
         this.paymentService = paymentService;
+        this.checkoutService = checkoutService;
         this.idempotencyService = idempotencyService;
         this.objectMapper = objectMapper;
         this.merchantClient = merchantClient;
@@ -73,6 +77,22 @@ public class PaymentController {
             idempotencyService.fail(recordId);
             throw ex;
         }
+    }
+    @GetMapping("/{paymentReference}/checkout")
+    @PreAuthorize("hasAuthority('payments:read')")
+    public CheckoutDtos.Options checkout(@AuthenticationPrincipal PayFlowPrincipal principal, @PathVariable String paymentReference) {
+        return checkoutService.checkout(principal, paymentReference);
+    }
+    @PostMapping("/{paymentReference}/verify")
+    @PreAuthorize("hasAuthority('payments:create')")
+    public PaymentDtos.PaymentResponse verify(@AuthenticationPrincipal PayFlowPrincipal principal, @PathVariable String paymentReference,
+            @Valid @RequestBody CheckoutDtos.VerificationRequest evidence) {
+        return checkoutService.verify(principal, paymentReference, evidence);
+    }
+    @PostMapping("/{paymentReference}/reconcile")
+    @PreAuthorize("hasAuthority('payments:read')")
+    public PaymentDtos.PaymentResponse reconcile(@AuthenticationPrincipal PayFlowPrincipal principal, @PathVariable String paymentReference) {
+        return checkoutService.reconcile(principal, paymentReference);
     }
     @GetMapping("/{paymentReference}")
     @PreAuthorize("hasAuthority('payments:read')")

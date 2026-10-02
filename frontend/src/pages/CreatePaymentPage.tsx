@@ -1,3 +1,4 @@
+import { RazorpayCheckout } from '../components/RazorpayCheckout';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, Smartphone, QrCode, Building2, Wallet, ArrowRight, CheckCircle2, XCircle, Clock, ExternalLink, Copy } from 'lucide-react';
@@ -272,7 +273,10 @@ export function CreatePaymentPage() {
               </motion.div>
             )}
 
-            {result.checkoutUrl && (
+            {result.provider === 'razorpay' && result.environment === 'TEST' && ['PENDING', 'PROCESSING', 'AUTHORIZED'].includes(result.status) && !result.qrCode && (
+              <RazorpayCheckout key={result.paymentReference} paymentReference={result.paymentReference} onUpdated={setResult} />
+            )}
+            {result.checkoutUrl && result.provider !== 'razorpay' && (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}

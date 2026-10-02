@@ -41,9 +41,13 @@ public class ProviderWebhookService {
         this.duplicateCounter = Counter.builder("payflow.provider.webhook.duplicate")
                 .register(meterRegistry);
     }
-    public enum Outcome { ACCEPTED, DUPLICATE }
+    public enum Outcome { ACCEPTED, DUPLICATE, IGNORED }
     @Transactional
     public Outcome handle(String providerName, String rawPayload, String signature, String timestamp) {
+        return handle(providerName, rawPayload, signature, timestamp, null);
+    }
+    @Transactional
+    public Outcome handle(String providerName, String rawPayload, String signature, String timestamp, String headerEventId) {
         PaymentGateway gateway = registry.resolve(providerName);
         if (!gateway.verifyWebhook(rawPayload, signature, timestamp)) {
             rejectedCounter.increment();
@@ -56,28 +60,36 @@ public class ProviderWebhookService {
             throw PayFlowException.unauthorized("Webhook timestamp is outside the accepted window");
         }
         PaymentGateway.GatewayEvent event = gateway.parseEvent(rawPayload);
-        if (event.providerEventId() == null || event.providerEventId().isBlank()) {
+        com.fasterxml.jackson.databind.JsonNode providerEntity = null;
+        if ("razorpay".equals(providerName)) {
+            if (!java.util.Set.of("payment.authorized", "payment.captured", "payment.failed", "qr_code.credited").contains(event.eventType())) return Outcome.IGNORED;
+            try { providerEntity = new com.fasterxml.jackson.databind.ObjectMapper().readTree(rawPayload).path("payload").path("payment").path("entity"); }
+            catch (Exception ex) { throw PayFlowException.badRequest(ErrorCode.VALIDATION_FAILED, "Invalid provider event"); }
+            if (!providerEntity.path("amount").canConvertToLong() || providerEntity.path("amount").asLong() <= 0
+                    || !"INR".equals(providerEntity.path("currency").asText()) || providerEntity.path("id").asText().isBlank()
+                    || event.providerPaymentId() == null || event.providerPaymentId().isBlank())
+                throw PayFlowException.badRequest(ErrorCode.VALIDATION_FAILED, "Provider event missing payment evidence");
+        }
+        String eventId = "razorpay".equals(providerName) && headerEventId != null && !headerEventId.isBlank() && headerEventId.length() <= 128
+                ? headerEventId : event.providerEventId();
+        if (eventId == null || eventId.isBlank()) {
             throw PayFlowException.badRequest(ErrorCode.PROVIDER_ERROR,
                     "Provider event is missing an event id, cannot be deduplicated");
         }
         if (eventRepository.existsByProviderAndProviderEventId(
-                event.provider(), event.providerEventId())) {
+                event.provider(), eventId)) {
             duplicateCounter.increment();
-            log.info("Ignoring duplicate {} event {}", event.provider(), event.providerEventId());
+            log.info("Ignoring duplicate {} event {}", event.provider(), eventId);
             return Outcome.DUPLICATE;
         }
-        ProviderEvent stored = new ProviderEvent(event.provider(), event.providerEventId(),
-                event.eventType(), event.providerPaymentId(), rawPayload);
-        try {
-            eventRepository.saveAndFlush(stored);
-        } catch (DataIntegrityViolationException ex) {
+        if (eventRepository.insertIfAbsent(java.util.UUID.randomUUID(), event.provider(), eventId,
+                event.eventType(), event.providerPaymentId(), rawPayload) == 0) {
             duplicateCounter.increment();
-            log.info("Concurrent duplicate {} event {}", event.provider(), event.providerEventId());
             return Outcome.DUPLICATE;
         }
         Map<String, Object> payload = new HashMap<>();
         payload.put("provider", event.provider());
-        payload.put("providerEventId", event.providerEventId());
+        payload.put("providerEventId", eventId);
         payload.put("providerPaymentId", event.providerPaymentId());
         payload.put("eventType", event.eventType());
         payload.put("status", event.status().name());
@@ -87,13 +99,17 @@ public class ProviderWebhookService {
         payload.put("paymentMethod", event.paymentMethod());
         payload.put("failureCode", event.failureCode());
         payload.put("failureMessage", event.failureMessage());
-        outbox.record("ProviderEvent", event.providerEventId(), TOPIC, 1,
+        if (providerEntity != null) {
+            payload.put("providerEntityPaymentId", providerEntity.path("id").asText());
+            payload.put("amountMinor", providerEntity.path("amount").asLong());
+            payload.put("currency", providerEntity.path("currency").asText());
+        }
+        outbox.record("ProviderEvent", eventId, TOPIC, 1,
                 event.providerPaymentId() == null ? event.providerEventId() : event.providerPaymentId(),
                 payload);
-        stored.markProcessed();
         acceptedCounter.increment();
         log.info("Accepted {} event {} ({}) for provider payment {}",
-                event.provider(), event.providerEventId(), event.eventType(),
+                event.provider(), eventId, event.eventType(),
                 event.providerPaymentId());
         return Outcome.ACCEPTED;
     }

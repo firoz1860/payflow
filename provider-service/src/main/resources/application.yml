@@ -42,6 +42,7 @@ payflow:
     token: ${PAYFLOW_INTERNAL_TOKEN}
   provider:
     default: ${PAYFLOW_PROVIDER_DEFAULT:sandbox}
+    test-provider: ${PAYFLOW_PROVIDER_TEST_PROVIDER:sandbox}
     sandbox:
       webhook-secret: ${SANDBOX_WEBHOOK_SECRET:sandbox-webhook-secret}
       checkout-url: ${SANDBOX_CHECKOUT_URL:http://localhost:8086/sandbox/checkout}

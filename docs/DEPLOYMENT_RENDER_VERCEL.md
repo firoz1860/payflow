@@ -273,3 +273,11 @@ These are backend capability gaps, not missing frontend API wiring:
 7. Razorpay non-QR LIVE order creation exists in the backend, but the current frontend does not embed the Razorpay Checkout browser widget.
 
 These limitations should not be represented as completed production features until their backend/UI pieces are added.
+
+## Razorpay TEST rollout
+
+Keep PAYFLOW_PROVIDER_TEST_PROVIDER=sandbox by default. A controlled TEST deployment can use razorpay after securely configuring RAZORPAY_KEY_ID (rzp_test_ prefix), RAZORPAY_KEY_SECRET and RAZORPAY_WEBHOOK_SECRET on provider-service. Missing or inconsistent configured credentials fail startup. No browser secret variables are needed: public Checkout options come from the tenant-owned payment API.
+
+Configure signed incoming provider webhooks at the gateway's /api/v1/provider-webhooks/razorpay endpoint. Complete docs/testing/razorpay-acceptance.md before promotion. Preserve outstanding Razorpay orders during rollback; switching new TEST routing to sandbox does not change existing provider records.
+
+Free service cold starts remain a production-availability limitation. An always-on hosting decision and database capacity verification are separate gates; this change does not purchase hosting or enable real-money LIVE payments.

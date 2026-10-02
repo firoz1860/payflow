@@ -1,5 +1,5 @@
 import api from '../api';
-import type { Payment, PageResponse, PaymentMethod } from '../types';
+import type { Payment, PageResponse, PaymentMethod, CheckoutOptions } from '../types';
 
 export async function createPayment(data: {
   amount: number;
@@ -29,5 +29,18 @@ export async function listPayments(params: { status?: string; page?: number; siz
 
 export async function cancelPayment(reference: string, reason?: string) {
   const res = await api.post<Payment>(`/payments/${reference}/cancel`, reason ? { reason } : {});
+  return res.data;
+}
+
+export async function getCheckout(reference: string) {
+  const res = await api.get<CheckoutOptions>(`/payments/${reference}/checkout`);
+  return res.data;
+}
+export async function verifyCheckout(reference: string, evidence: { orderId: string; paymentId: string; signature: string }) {
+  const res = await api.post<Payment>(`/payments/${reference}/verify`, evidence);
+  return res.data;
+}
+export async function reconcileCheckout(reference: string) {
+  const res = await api.post<Payment>(`/payments/${reference}/reconcile`);
   return res.data;
 }

@@ -12,7 +12,7 @@ public class PaymentGatewayRegistry {
     private final Map<String, PaymentGateway> gateways;
     private final String defaultProvider;
     public PaymentGatewayRegistry(List<PaymentGateway> gateways,
-                                  @Value("${payflow.provider.default:sandbox}") String defaultProvider) {
+                                  @Value("${payflow.provider.test-provider:sandbox}") String defaultProvider) {
         this.gateways = gateways.stream()
                 .collect(Collectors.toMap(PaymentGateway::name, Function.identity()));
         this.defaultProvider = defaultProvider;
@@ -30,11 +30,16 @@ public class PaymentGatewayRegistry {
         return gateway;
     }
     public PaymentGateway selectFor(String environment, String currency, String paymentMethod) {
-        if ("TEST".equalsIgnoreCase(environment) && gateways.containsKey("sandbox")) {
-            return gateways.get("sandbox");
+        if (!"TEST".equalsIgnoreCase(environment)) {
+            throw PayFlowException.forbidden("LIVE payment creation is disabled until provider readiness is verified");
+        }
+        if ("razorpay".equals(defaultProvider) && (!"INR".equals(currency)
+                || !java.util.Set.of("CARD", "UPI", "NET_BANKING", "WALLET", "QR").contains(paymentMethod == null ? "CARD" : paymentMethod))) {
+            throw PayFlowException.badRequest(ErrorCode.PROVIDER_ERROR, "Unsupported Razorpay currency or payment method");
         }
         return resolve(defaultProvider);
     }
+
     public java.util.Set<String> available() {
         return gateways.keySet();
     }

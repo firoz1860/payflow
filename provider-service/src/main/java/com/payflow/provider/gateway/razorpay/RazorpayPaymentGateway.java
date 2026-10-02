@@ -31,9 +31,16 @@ public class RazorpayPaymentGateway implements PaymentGateway {
     private final WebClient client;
     private final ProviderProperties.Razorpay config;
     private final ObjectMapper objectMapper;
-    public RazorpayPaymentGateway(ProviderProperties properties, ObjectMapper objectMapper) {
+    private final RazorpayOrderAttemptStore attempts;
+    public RazorpayPaymentGateway(ProviderProperties properties, ObjectMapper objectMapper, RazorpayOrderAttemptStore attempts) {
+        this.attempts = attempts;
         this.config = properties.getRazorpay();
         this.objectMapper = objectMapper;
+        if (config.getKeyId() == null || !config.getKeyId().startsWith("rzp_test_")
+                || config.getKeySecret() == null || config.getKeySecret().isBlank()
+                || config.getWebhookSecret() == null || config.getWebhookSecret().isBlank()) {
+            throw new IllegalStateException("Razorpay TEST integration requires a test key, secret and webhook secret");
+        }
         String basic = Base64.getEncoder().encodeToString(
                 (config.getKeyId() + ":" + config.getKeySecret()).getBytes(StandardCharsets.UTF_8));
         HttpClient httpClient = HttpClient.create()
@@ -52,6 +59,31 @@ public class RazorpayPaymentGateway implements PaymentGateway {
     }
     @Override
     public GatewayPayment createPayment(CreateGatewayPaymentCommand command) {
+        if (!"TEST".equals(command.environment())) throw PayFlowException.forbidden("Razorpay LIVE creation is disabled");
+        String key = Hashing.sha256Hex(command.merchantId() + "|" + command.idempotencyKey());
+        try {
+            Map<String, Object> values = new java.util.TreeMap<>();
+            values.put("amount", command.amount().stripTrailingZeros().toPlainString());
+            values.put("currency", command.currency());
+            values.put("method", command.paymentMethod());
+            values.put("description", command.description());
+            values.put("metadata", command.metadata() == null ? null : new java.util.TreeMap<>(command.metadata()));
+            String fingerprint = Hashing.sha256Hex(objectMapper.writeValueAsString(values));
+            RazorpayOrderAttemptStore.Claim claim = attempts.claim(key, command.paymentReference(), fingerprint);
+            if (!claim.acquired()) return objectMapper.readValue(claim.responseJson(), GatewayPayment.class);
+            try {
+                GatewayPayment result = createOnce(command);
+                attempts.complete(key, objectMapper.writeValueAsString(result));
+                return result;
+            } catch (Exception ex) {
+                attempts.uncertain(key);
+                throw providerError("Provider order outcome requires reconciliation", null);
+            }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw providerError("Cannot read provider attempt", null);
+        }
+    }
+    private GatewayPayment createOnce(CreateGatewayPaymentCommand command) {
         if ("QR".equalsIgnoreCase(command.paymentMethod())) {
             return createQrCode(command);
         }
@@ -59,18 +91,18 @@ public class RazorpayPaymentGateway implements PaymentGateway {
         body.put("amount", toMinorUnits(command.amount(), command.currency()));
         body.put("currency", command.currency());
         body.put("receipt", command.paymentReference());
-        body.put("payment_capture", 1);
         Map<String, String> notes = new HashMap<>();
         notes.put("payflow_reference", command.paymentReference());
         notes.put("payflow_merchant", command.merchantId());
         if (command.metadata() != null) {
             command.metadata().forEach((k, v) -> notes.put("meta_" + k, v));
         }
+        if (notes.size() > 15 || notes.entrySet().stream().anyMatch(e -> e.getKey().length() > 256 || e.getValue() == null || e.getValue().length() > 256))
+            throw PayFlowException.badRequest(ErrorCode.VALIDATION_FAILED, "Provider metadata exceeds allowed limits");
         body.put("notes", notes);
         try {
             JsonNode response = client.post()
                     .uri("/orders")
-                    .header("X-Razorpay-Idempotency-Key", command.idempotencyKey())
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(JsonNode.class)
@@ -82,14 +114,13 @@ public class RazorpayPaymentGateway implements PaymentGateway {
             log.info("Razorpay order {} created for {}", orderId, command.paymentReference());
             return new GatewayPayment(name(), orderId, GatewayStatus.PENDING,
                     command.amount(), command.currency(),
-                    config.getCheckoutUrl() + "?order_id=" + orderId,
+                    null,
                     null, null, null, command.paymentMethod(), null, null, null, null);
         } catch (WebClientResponseException ex) {
             JsonNode error = readError(ex.getResponseBodyAsString());
             String code = error.path("error").path("code").asText("provider_error");
             String description = error.path("error").path("description").asText(ex.getMessage());
-            log.error("Razorpay rejected order for {}: {} {}",
-                    command.paymentReference(), code, description);
+            log.warn("Razorpay rejected order for {}: {}", command.paymentReference(), code);
             return new GatewayPayment(name(), null, GatewayStatus.FAILED,
                     command.amount(), command.currency(), null, null, null, null,
                     command.paymentMethod(), code, description, null, null);
@@ -116,11 +147,12 @@ public class RazorpayPaymentGateway implements PaymentGateway {
         if (command.metadata() != null) {
             command.metadata().forEach((k, v) -> notes.put("meta_" + k, v));
         }
+        if (notes.size() > 15 || notes.entrySet().stream().anyMatch(e -> e.getKey().length() > 256 || e.getValue() == null || e.getValue().length() > 256))
+            throw PayFlowException.badRequest(ErrorCode.VALIDATION_FAILED, "Provider metadata exceeds allowed limits");
         body.put("notes", notes);
         try {
             JsonNode response = client.post()
                     .uri("/payments/qr_codes")
-                    .header("X-Razorpay-Idempotency-Key", command.idempotencyKey())
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(JsonNode.class)
@@ -138,8 +170,7 @@ public class RazorpayPaymentGateway implements PaymentGateway {
             JsonNode error = readError(ex.getResponseBodyAsString());
             String code = error.path("error").path("code").asText("provider_error");
             String description = error.path("error").path("description").asText(ex.getMessage());
-            log.error("Razorpay rejected QR for {}: {} {}",
-                    command.paymentReference(), code, description);
+            log.warn("Razorpay rejected QR for {}: {}", command.paymentReference(), code);
             return new GatewayPayment(name(), null, GatewayStatus.FAILED,
                     command.amount(), command.currency(), null, null, null, null,
                     "QR", code, description, null, null);
@@ -168,7 +199,6 @@ public class RazorpayPaymentGateway implements PaymentGateway {
         try {
             JsonNode response = client.post()
                     .uri("/payments/{id}/refund", command.providerPaymentId())
-                    .header("X-Razorpay-Idempotency-Key", command.idempotencyKey())
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(JsonNode.class)
@@ -262,7 +292,7 @@ public class RazorpayPaymentGateway implements PaymentGateway {
     }
     private GatewayStatus mapEventStatus(String eventType) {
         return switch (eventType == null ? "" : eventType) {
-            case "payment.captured", "order.paid" -> GatewayStatus.CAPTURED;
+            case "payment.captured", "order.paid", "qr_code.credited" -> GatewayStatus.CAPTURED;
             case "payment.authorized" -> GatewayStatus.AUTHORIZED;
             case "payment.failed" -> GatewayStatus.FAILED;
             default -> GatewayStatus.PENDING;
