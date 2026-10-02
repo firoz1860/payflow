@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Plus, KeyRound, Copy, CheckCircle2, AlertTriangle, Trash2 } from 'lucide-react';
-import { listApiKeys, createApiKey, revokeApiKey } from '../services/merchantService';
+import { AlertTriangle, CheckCircle2, Copy, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react';
+import { createApiKey, listApiKeys, revokeApiKey, updateApiKey } from '../services/merchantService';
 import { PageHeader } from '../components/PageHeader';
 import { Modal } from '../components/Modal';
 import { CardSpinner, EmptyState } from '../components/Spinner';
 import { toast } from '../components/Toast';
 import { extractError } from '../api';
 import { formatDateTime, timeAgo } from '../lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { ApiKey, CreateApiKeyResponse } from '../types';
 
 export function ApiKeysPage() {
@@ -19,6 +19,9 @@ export function ApiKeysPage() {
   const [form, setForm] = useState({ environment: 'TEST', keyType: 'SECRET', label: '' });
   const [creating, setCreating] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ApiKey | null>(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -52,10 +55,36 @@ export function ApiKeysPage() {
     finally { setRevokingId(null); }
   };
 
-  const copySecret = () => {
-    navigator.clipboard.writeText(newKey?.secret || '');
+  const copy = async (value: string, message: string) => {
+    await navigator.clipboard.writeText(value);
+    toast('success', message);
+  };
+
+  const copySecret = async () => {
+    await navigator.clipboard.writeText(newKey?.secret || '');
     setCopied(true);
+    toast('success', 'API key copied');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const openEdit = (key: ApiKey) => {
+    setEditing(key);
+    setEditLabel(key.label || '');
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    setSavingEdit(true);
+    try {
+      const updated = await updateApiKey(editing.keyId, { label: editLabel });
+      setKeys((current) => current.map((key) => key.keyId === updated.keyId ? updated : key));
+      setEditing(null);
+      toast('success', 'API key label updated');
+    } catch (err) {
+      toast('error', extractError(err));
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   return (
@@ -90,31 +119,63 @@ export function ApiKeysPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <AnimatePresence>
-                  {keys.map((k, i) => (
+                  {keys.map((key, index) => (
                     <motion.tr
-                      key={k.keyId}
-                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}
-                      transition={{ delay: i * 0.05, duration: 0.2 }}
+                      key={key.keyId}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ delay: index * 0.05, duration: 0.2 }}
                       className="table-row-hover"
                     >
-                      <td className="px-6 py-4 text-sm font-medium text-slate-900">{k.label || '—'}</td>
-                      <td className="px-6 py-4"><span className="font-mono text-sm text-slate-600">{k.maskedKey}</span></td>
+                      <td className="px-6 py-4 text-sm font-medium text-slate-900">{key.label || '—'}</td>
                       <td className="px-6 py-4">
-                        <span className={`badge ${k.environment === 'LIVE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{k.environment}</span>
+                        <button
+                          type="button"
+                          onClick={() => copy(key.maskedKey, 'Masked key copied')}
+                          className="font-mono text-sm text-slate-600 hover:text-blue-700"
+                          title="Copy masked key"
+                        >
+                          {key.maskedKey}
+                        </button>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{k.keyType}</td>
                       <td className="px-6 py-4">
-                        <span className={`badge ${k.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{k.status}</span>
+                        <span className={`badge ${key.environment === 'LIVE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{key.environment}</span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-500">{formatDateTime(k.createdAt)}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">{k.lastUsedAt ? timeAgo(k.lastUsedAt) : 'Never'}</td>
-                      <td className="px-6 py-4 text-right">
-                        <motion.button
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => handleRevoke(k.keyId)} disabled={revokingId === k.keyId}
-                          className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition disabled:opacity-50"
-                          title="Revoke"
-                        ><Trash2 className="w-4 h-4" /></motion.button>
+                      <td className="px-6 py-4 text-sm text-slate-600">{key.keyType}</td>
+                      <td className="px-6 py-4">
+                        <span className={`badge ${key.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{key.status}</span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{formatDateTime(key.createdAt)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{key.lastUsedAt ? timeAgo(key.lastUsedAt) : 'Never'}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => copy(key.keyId, 'Key ID copied')}
+                            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
+                            title="Copy Key ID"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(key)}
+                            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
+                            title="Edit label"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleRevoke(key.keyId)}
+                            disabled={revokingId === key.keyId || key.status !== 'ACTIVE'}
+                            className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
+                            title="Revoke"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </motion.button>
+                        </div>
                       </td>
                     </motion.tr>
                   ))}
@@ -125,12 +186,16 @@ export function ApiKeysPage() {
         )}
       </div>
 
+      <p className="mt-3 text-xs text-slate-500">
+        Existing API secrets cannot be revealed. PayFlow only returns the raw secret once, at creation.
+      </p>
+
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create API Key" size="sm">
         <div className="space-y-4">
           <div>
             <label className="label">Label (optional)</label>
             <input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })}
-              placeholder="Production server" className="input" />
+              placeholder="Production server" className="input" maxLength={120} />
           </div>
           <div>
             <label className="label">Environment</label>
@@ -150,6 +215,30 @@ export function ApiKeysPage() {
             <button onClick={() => setCreateOpen(false)} className="btn-secondary">Cancel</button>
             <button onClick={handleCreate} disabled={creating} className="btn-primary">
               {creating ? 'Creating…' : 'Create Key'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit API key" size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className="label">Label</label>
+            <input
+              value={editLabel}
+              maxLength={120}
+              onChange={(event) => setEditLabel(event.target.value)}
+              className="input"
+              placeholder="Getting Started"
+            />
+          </div>
+          <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
+            Only the label can be changed. Key type, environment, scopes and secret remain immutable.
+          </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setEditing(null)} className="btn-secondary">Cancel</button>
+            <button type="button" onClick={saveEdit} disabled={savingEdit} className="btn-primary">
+              {savingEdit ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </div>
@@ -177,6 +266,7 @@ export function ApiKeysPage() {
                   {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                 </motion.button>
               </div>
+              <p className="sr-only" aria-live="polite">{copied ? 'API key copied' : ''}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm">
