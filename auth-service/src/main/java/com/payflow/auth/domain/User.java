@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 @Table(name = "users")
 public class User {
     public enum Status { PENDING_VERIFICATION, ACTIVE, SUSPENDED, DISABLED }
+    public enum OnboardingStatus { NOT_STARTED, IN_PROGRESS, DISMISSED, COMPLETED }
     @Id
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
@@ -43,6 +44,15 @@ public class User {
     private Instant lastLoginAt;
     @Column(name = "credentials_valid_from", nullable = false)
     private Instant credentialsValidFrom = Instant.now();
+    @Enumerated(EnumType.STRING)
+    @Column(name = "onboarding_status", nullable = false, length = 24)
+    private OnboardingStatus onboardingStatus = OnboardingStatus.NOT_STARTED;
+    @Column(name = "onboarding_last_step", nullable = false)
+    private int onboardingLastStep = 1;
+    @Column(name = "onboarding_dismissed_at")
+    private Instant onboardingDismissedAt;
+    @Column(name = "onboarding_completed_at")
+    private Instant onboardingCompletedAt;
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_roles",
             joinColumns = @JoinColumn(name = "user_id"),
@@ -111,6 +121,52 @@ public class User {
         this.roles.remove(role);
         touch();
     }
+    public void startOnboarding() {
+        if (onboardingStatus == OnboardingStatus.COMPLETED) {
+            return;
+        }
+        onboardingStatus = OnboardingStatus.IN_PROGRESS;
+        onboardingDismissedAt = null;
+        if (onboardingLastStep < 1 || onboardingLastStep > 5) {
+            onboardingLastStep = 1;
+        }
+        touch();
+    }
+    public void updateOnboardingStep(int step) {
+        if (step < 1 || step > 5) {
+            throw new IllegalArgumentException("Onboarding step must be between 1 and 5");
+        }
+        if (onboardingStatus == OnboardingStatus.COMPLETED) {
+            return;
+        }
+        onboardingStatus = OnboardingStatus.IN_PROGRESS;
+        onboardingDismissedAt = null;
+        onboardingLastStep = Math.max(onboardingLastStep, step);
+        touch();
+    }
+    public void dismissOnboarding() {
+        if (onboardingStatus == OnboardingStatus.COMPLETED) {
+            return;
+        }
+        onboardingStatus = OnboardingStatus.DISMISSED;
+        onboardingDismissedAt = Instant.now();
+        touch();
+    }
+    public void resumeOnboarding() {
+        if (onboardingStatus == OnboardingStatus.COMPLETED) {
+            return;
+        }
+        onboardingStatus = OnboardingStatus.IN_PROGRESS;
+        onboardingDismissedAt = null;
+        touch();
+    }
+    public void completeOnboarding() {
+        onboardingStatus = OnboardingStatus.COMPLETED;
+        onboardingLastStep = 5;
+        onboardingDismissedAt = null;
+        onboardingCompletedAt = Instant.now();
+        touch();
+    }
     private void touch() {
         this.updatedAt = Instant.now();
     }
@@ -151,6 +207,18 @@ public class User {
     }
     public Instant getCredentialsValidFrom() {
         return credentialsValidFrom;
+    }
+    public OnboardingStatus getOnboardingStatus() {
+        return onboardingStatus;
+    }
+    public int getOnboardingLastStep() {
+        return onboardingLastStep;
+    }
+    public Instant getOnboardingDismissedAt() {
+        return onboardingDismissedAt;
+    }
+    public Instant getOnboardingCompletedAt() {
+        return onboardingCompletedAt;
     }
     public Set<Role> getRoles() {
         return roles;
