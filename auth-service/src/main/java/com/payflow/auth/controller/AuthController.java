@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -57,6 +58,19 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<AuthDtos.UserResponse> me(@AuthenticationPrincipal AuthenticatedUser principal) {
         return ResponseEntity.ok(authService.currentUser(principal.userId()));
+    }
+    @GetMapping("/me/onboarding")
+    @Operation(summary = "Return persisted onboarding state for the current user")
+    public ResponseEntity<AuthDtos.UserOnboardingResponse> onboarding(
+            @AuthenticationPrincipal AuthenticatedUser principal) {
+        return ResponseEntity.ok(authService.currentOnboarding(principal.userId()));
+    }
+    @PatchMapping("/me/onboarding")
+    @Operation(summary = "Update only the current merchant owner's onboarding state")
+    public ResponseEntity<AuthDtos.UserOnboardingResponse> updateOnboarding(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @Valid @RequestBody AuthDtos.UpdateOnboardingRequest request) {
+        return ResponseEntity.ok(authService.updateOnboarding(principal.userId(), request));
     }
     @PostMapping("/verify-email/{token}")
     public ResponseEntity<AuthDtos.MessageResponse> verifyEmail(@PathVariable String token) {
