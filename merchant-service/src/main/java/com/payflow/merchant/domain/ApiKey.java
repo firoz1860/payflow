@@ -92,6 +92,17 @@ public class ApiKey {
     public void touchLastUsed(Instant when) {
         this.lastUsedAt = when;
     }
+    public void updateLabel(String label) {
+        if (label == null || label.isBlank()) {
+            this.label = null;
+            return;
+        }
+        String normalized = label.trim();
+        if (normalized.length() > 120) {
+            throw new IllegalArgumentException("API key label must be 120 characters or fewer");
+        }
+        this.label = normalized;
+    }
     public UUID getId() {
         return id;
     }
