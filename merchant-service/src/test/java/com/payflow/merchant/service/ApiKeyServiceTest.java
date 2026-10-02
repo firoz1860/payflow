@@ -148,6 +148,25 @@ class ApiKeyServiceTest {
     }
 
     @Test
+    @DisplayName("listed API keys expose masked metadata and never a raw secret field")
+    void listNeverReturnsRawSecret() {
+        UUID merchantId = merchant.getId();
+        ApiKey key = new ApiKey(
+                "key_list", "lookup-hash-list", "secret-hash-list", "sk_test_...9012",
+                merchantId, ApiKey.Environment.TEST, ApiKey.KeyType.SECRET,
+                "listed key", Set.of("payments:read"), null, UUID.randomUUID());
+        when(apiKeyRepository.findAllByMerchantIdOrderByCreatedAtDesc(merchantId))
+                .thenReturn(java.util.List.of(key));
+
+        var listed = apiKeyService.list(merchantId);
+        assertThat(listed).hasSize(1);
+        assertThat(listed.get(0).maskedKey()).isEqualTo("sk_test_...9012");
+        assertThat(java.util.Arrays.stream(MerchantDtos.ApiKeyResponse.class.getRecordComponents())
+                .map(java.lang.reflect.RecordComponent::getName))
+                .doesNotContain("secret");
+    }
+
+    @Test
     @DisplayName("a malformed key is rejected before any database work happens")
     void malformedKeyRejectedEarly() {
         assertThat(apiKeyService.verify("not-a-key").valid()).isFalse();
