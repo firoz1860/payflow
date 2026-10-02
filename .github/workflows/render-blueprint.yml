@@ -5,11 +5,19 @@ on:
     paths:
       - render.yaml
       - .github/workflows/render-blueprint.yml
+      - '**/Dockerfile'
+      - '**/pom.xml'
+      - '**/src/**'
+      - infrastructure/scripts/check-render-context.py
   push:
     branches: [main]
     paths:
       - render.yaml
       - .github/workflows/render-blueprint.yml
+      - '**/Dockerfile'
+      - '**/pom.xml'
+      - '**/src/**'
+      - infrastructure/scripts/check-render-context.py
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -20,6 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check all Docker COPY inputs and Render contexts
+        run: |
+          python -m pip install --disable-pip-version-check PyYAML
+          python infrastructure/scripts/check-render-context.py
       - name: Validate render.yaml against Render schema
         run: |
           python -m pip install --disable-pip-version-check check-jsonschema

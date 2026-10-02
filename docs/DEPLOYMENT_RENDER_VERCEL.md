@@ -88,6 +88,47 @@ The five database-owning services use separate PostgreSQL schemas inside the sam
 
 > Render free Postgres expires after 30 days and only one free Postgres instance is allowed per workspace. Free Key Value is non-persistent. For a long-running deployment, upgrade those resources. Render private services do not have a Free plan.
 
+### Fix Docker `COPY ... not found` on existing services
+
+All core source folders are committed. Each Java Dockerfile builds from the
+repository root because it needs the parent POM, every module POM, and
+`payflow-common/src`. A service-level build context cannot supply those files.
+The Blueprint explicitly sets `rootDir: .` and `dockerContext: .` for every
+Docker service, including Kafka.
+
+For services created manually, open **Settings → Build & Deploy** and apply:
+
+| Service | Root Directory | Docker Build Context Directory | Dockerfile Path |
+|---|---|---|---|
+| API Gateway | blank (repository root) | `.` | `api-gateway/Dockerfile` |
+| Auth | blank (repository root) | `.` | `auth-service/Dockerfile` |
+| Merchant | blank (repository root) | `.` | `merchant-service/Dockerfile` |
+| Payment | blank (repository root) | `.` | `payment-service/Dockerfile` |
+| Provider | blank (repository root) | `.` | `provider-service/Dockerfile` |
+| Ledger | blank (repository root) | `.` | `ledger-service/Dockerfile` |
+| Kafka | blank (repository root) | `.` | `infrastructure/render/kafka/Dockerfile` |
+
+Use repository `firoz1860/payflow` and branch `main`. Clear any Root Directory
+such as `auth-service` or `merchant-service`. Save all three fields together,
+then deploy the latest commit. Updating `render.yaml` alone does not update
+services created manually; Blueprint-managed services need a Blueprint sync.
+Do not recreate services or databases to correct these paths.
+
+To check the repository inputs locally (this is not a container build):
+
+```bash
+python -m pip install PyYAML
+python infrastructure/scripts/check-render-context.py
+```
+
+To actually build a service, run from the repository root:
+
+```bash
+docker build -f auth-service/Dockerfile .
+```
+
+The CI Docker matrix builds all six Java service images and Kafka from `.`.
+
 ### Secrets Render will ask you for
 
 Generate the JWT secret locally:

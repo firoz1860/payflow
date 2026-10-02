@@ -1,6 +1,8 @@
 # PayFlow backend blueprint for Render.
 # Frontend is deployed separately on Vercel from ./frontend.
 # Only api-gateway is public. Core microservices and Kafka stay on Render's private network.
+# Every Dockerfile uses repository-root COPY paths. Keep rootDir and dockerContext
+# at '.'; a service subdirectory hides payflow-common and the other reactor POMs.
 
 services:
   - type: keyvalue
@@ -15,6 +17,7 @@ services:
     runtime: docker
     plan: 0.5c-512mb
     region: singapore
+    rootDir: .
     dockerContext: .
     dockerfilePath: ./infrastructure/render/kafka/Dockerfile
     autoDeployTrigger: checksPass
@@ -38,6 +41,7 @@ services:
     runtime: docker
     plan: 0.5c-512mb
     region: singapore
+    rootDir: .
     dockerContext: .
     dockerfilePath: ./auth-service/Dockerfile
     autoDeployTrigger: checksPass
@@ -87,6 +91,7 @@ services:
     runtime: docker
     plan: 0.5c-512mb
     region: singapore
+    rootDir: .
     dockerContext: .
     dockerfilePath: ./merchant-service/Dockerfile
     autoDeployTrigger: checksPass
@@ -133,6 +138,7 @@ services:
     runtime: docker
     plan: 0.5c-512mb
     region: singapore
+    rootDir: .
     dockerContext: .
     dockerfilePath: ./provider-service/Dockerfile
     autoDeployTrigger: checksPass
@@ -175,6 +181,7 @@ services:
     runtime: docker
     plan: 0.5c-512mb
     region: singapore
+    rootDir: .
     dockerContext: .
     dockerfilePath: ./payment-service/Dockerfile
     autoDeployTrigger: checksPass
@@ -229,6 +236,7 @@ services:
     runtime: docker
     plan: 0.5c-512mb
     region: singapore
+    rootDir: .
     dockerContext: .
     dockerfilePath: ./ledger-service/Dockerfile
     autoDeployTrigger: checksPass
@@ -268,6 +276,7 @@ services:
     runtime: docker
     plan: free
     region: singapore
+    rootDir: .
     dockerContext: .
     dockerfilePath: ./api-gateway/Dockerfile
     autoDeployTrigger: checksPass
