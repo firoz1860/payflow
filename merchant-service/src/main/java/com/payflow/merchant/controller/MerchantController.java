@@ -108,6 +108,16 @@ public class MerchantController {
             @AuthenticationPrincipal PayFlowPrincipal principal) {
         return ResponseEntity.ok(apiKeyService.list(TenantGuard.requireMerchant(principal)));
     }
+    @PatchMapping("/me/api-keys/{keyId}")
+    @PreAuthorize("hasAuthority('api_keys:manage')")
+    @Operation(summary = "Update safe API key metadata; secret, type, environment and scopes are immutable")
+    public ResponseEntity<MerchantDtos.ApiKeyResponse> updateApiKey(
+            @AuthenticationPrincipal PayFlowPrincipal principal,
+            @PathVariable String keyId,
+            @Valid @RequestBody MerchantDtos.UpdateApiKeyRequest request) {
+        return ResponseEntity.ok(apiKeyService.update(
+                TenantGuard.requireMerchant(principal), keyId, principal.userId(), request));
+    }
     @DeleteMapping("/me/api-keys/{keyId}")
     @PreAuthorize("hasAuthority('api_keys:manage')")
     public ResponseEntity<MerchantDtos.MessageResponse> revokeApiKey(
