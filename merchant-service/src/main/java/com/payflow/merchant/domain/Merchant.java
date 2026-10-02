@@ -24,6 +24,10 @@ public class Merchant {
     private String businessName;
     @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
+    @Column(name = "registration_key", length = 64, unique = true)
+    private String registrationKey;
+    public String getRegistrationKey() { return registrationKey; }
+    public void setRegistrationKey(String key) { registrationKey = key; }
     @Column(name = "phone", length = 32)
     private String phone;
     @Enumerated(EnumType.STRING)
