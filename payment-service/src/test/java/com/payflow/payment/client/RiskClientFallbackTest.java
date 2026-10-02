@@ -33,7 +33,7 @@ class RiskClientFallbackTest {
                 new BigDecimal(amount), "INR", null, null, "TEST");
         var fallback = FallbackMethod.create("evaluateFallback",
                 RiskClient.class.getMethod("evaluate", RiskClient.RiskRequest.class),
-                new Object[]{request}, original, proxy);
+                new Object[]{request}, RiskClient.class, proxy);
         var response = (RiskClient.RiskResponse) fallback.fallback(new IllegalStateException("unavailable"));
         assertEquals(expected, response.decision());
         assertEquals(java.util.List.of("RISK_SERVICE_UNAVAILABLE"), response.triggeredRules());
