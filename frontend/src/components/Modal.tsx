@@ -1,8 +1,8 @@
-import { useEffect, useState, ReactNode } from 'react';
+import { useEffect, useRef, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 interface ModalProps {
   open: boolean;
@@ -13,16 +13,47 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
+
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-      const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-      window.addEventListener('keydown', handler);
-      return () => {
-        document.body.style.overflow = '';
-        window.removeEventListener('keydown', handler);
-      };
-    }
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = 'hidden';
+
+    const getFocusable = () => Array.from(
+      dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ) || []
+    );
+
+    window.setTimeout(() => getFocusable()[0]?.focus(), 0);
+
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = getFocusable();
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handler);
+      previous?.focus();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -36,19 +67,28 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.18 }}
           className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
           onClick={onClose}
         />
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="payflow-modal-title"
+          initial={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.96, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 400 }}
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 12 }}
+          transition={reduceMotion ? { duration: 0 } : { type: 'spring', damping: 28, stiffness: 400 }}
           className={cn('relative w-full bg-white rounded-xl shadow-xl border border-slate-200', sizes[size])}
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-            <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition">
+            <h2 id="payflow-modal-title" className="text-lg font-semibold text-slate-900">{title}</h2>
+            <button
+              aria-label="Close dialog"
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
