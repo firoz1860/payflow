@@ -42,7 +42,7 @@ public class OutboxPublisher {
         for (OutboxEvent event : batch) {
             try {
                 ProducerRecord<String, String> record = new ProducerRecord<>(
-                        event.getEventType(), event.getPartitionKey(), event.getPayload());
+                        properties.topicFor(event.getEventType()), event.getPartitionKey(), event.getPayload());
                 record.headers().add("eventId", event.getId().toString().getBytes());
                 record.headers().add("eventType", event.getEventType().getBytes());
                 if (event.getCorrelationId() != null) {

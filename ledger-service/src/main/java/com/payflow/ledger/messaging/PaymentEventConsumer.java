@@ -43,9 +43,10 @@ public class PaymentEventConsumer {
                     paymentReference, merchantId, currency, amount, fee, BigDecimal.ZERO));
         });
     }
-    @KafkaListener(topics = "refund.completed", groupId = "ledger-service.refunds",
+    @KafkaListener(topics = "${payflow.kafka.shared-topic:refund.completed}", groupId = "ledger-service.refunds",
             containerFactory = "kafkaListenerContainerFactory")
     public void onRefundCompleted(ConsumerRecord<String, String> record) {
+        if (!matchesType(record, "refund.completed")) return;
         withCorrelation(record, () -> {
             JsonNode data = readData(record.value());
             String refundReference = data.path("refundReference").asText();
@@ -57,9 +58,10 @@ public class PaymentEventConsumer {
                     merchantId, currency, amount, BigDecimal.ZERO));
         });
     }
-    @KafkaListener(topics = "settlement.completed", groupId = "ledger-service.settlements",
+    @KafkaListener(topics = "${payflow.kafka.shared-topic:settlement.completed}", groupId = "ledger-service.settlements",
             containerFactory = "kafkaListenerContainerFactory")
     public void onSettlementCompleted(ConsumerRecord<String, String> record) {
+        if (!matchesType(record, "settlement.completed")) return;
         withCorrelation(record, () -> {
             JsonNode data = readData(record.value());
             ledgerService.post(postingBuilder.settlement(
@@ -68,6 +70,11 @@ public class PaymentEventConsumer {
                     data.path("currency").asText(),
                     new BigDecimal(data.path("netAmount").asText())));
         });
+    }
+    private boolean matchesType(ConsumerRecord<String, String> record, String expected) {
+        var header = record.headers().lastHeader("eventType");
+        if (header != null) return expected.equals(new String(header.value(), StandardCharsets.UTF_8));
+        return expected.equals(record.topic());
     }
     private JsonNode readData(String value) {
         try {
