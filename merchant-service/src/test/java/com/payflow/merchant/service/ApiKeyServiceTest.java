@@ -106,6 +106,48 @@ class ApiKeyServiceTest {
         assertThat(result.reason()).isEqualTo("Invalid API key");
     }
     @Test
+    @DisplayName("owning merchant can edit only the API key label")
+    void owningMerchantCanUpdateLabelWithoutChangingCredentialMaterial() {
+        UUID merchantId = merchant.getId();
+        ApiKey key = new ApiKey(
+                "key_test", "lookup-hash", "secret-hash", "sk_test_...1234",
+                merchantId, ApiKey.Environment.TEST, ApiKey.KeyType.SECRET,
+                "old label", Set.of("payments:create"), null, UUID.randomUUID());
+        when(apiKeyRepository.findByKeyId("key_test")).thenReturn(Optional.of(key));
+
+        MerchantDtos.ApiKeyResponse response = apiKeyService.update(
+                merchantId, "key_test", UUID.randomUUID(),
+                new MerchantDtos.UpdateApiKeyRequest("Getting Started"));
+
+        assertThat(response.label()).isEqualTo("Getting Started");
+        assertThat(key.getSecretHash()).isEqualTo("secret-hash");
+        assertThat(key.getLookupHash()).isEqualTo("lookup-hash");
+        assertThat(key.getEnvironment()).isEqualTo(ApiKey.Environment.TEST);
+        assertThat(key.getKeyType()).isEqualTo(ApiKey.KeyType.SECRET);
+        assertThat(key.getScopes()).containsExactly("payments:create");
+    }
+
+    @Test
+    @DisplayName("cross-merchant API key label edits return not found")
+    void crossMerchantUpdateIsBlocked() {
+        UUID ownerMerchant = UUID.randomUUID();
+        ApiKey key = new ApiKey(
+                "key_other", "lookup-hash-2", "secret-hash-2", "sk_test_...5678",
+                ownerMerchant, ApiKey.Environment.TEST, ApiKey.KeyType.SECRET,
+                "owner key", Set.of("payments:read"), null, UUID.randomUUID());
+        when(apiKeyRepository.findByKeyId("key_other")).thenReturn(Optional.of(key));
+
+        assertThatThrownBy(() -> apiKeyService.update(
+                UUID.randomUUID(), "key_other", UUID.randomUUID(),
+                new MerchantDtos.UpdateApiKeyRequest("attacker edit")))
+                .isInstanceOf(PayFlowException.class)
+                .hasMessageContaining("API key not found");
+
+        assertThat(key.getLabel()).isEqualTo("owner key");
+        assertThat(key.getSecretHash()).isEqualTo("secret-hash-2");
+    }
+
+    @Test
     @DisplayName("a malformed key is rejected before any database work happens")
     void malformedKeyRejectedEarly() {
         assertThat(apiKeyService.verify("not-a-key").valid()).isFalse();
