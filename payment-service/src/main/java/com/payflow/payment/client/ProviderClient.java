@@ -11,6 +11,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Map;
+import com.payflow.payment.dto.CheckoutDtos;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 @Component
 public class ProviderClient {
     private static final Logger log = LoggerFactory.getLogger(ProviderClient.class);
@@ -44,6 +46,29 @@ public class ProviderClient {
             String qrCodeData,
             String qrCodeImage
     ) {
+    }
+    public CheckoutDtos.Options checkout(String orderId) {
+        return checkoutResponse(client.get().uri("/internal/providers/razorpay/orders/{id}/checkout", orderId).retrieve(), CheckoutDtos.Options.class);
+    }
+    public CheckoutDtos.VerifiedPayment verifyCheckout(CheckoutDtos.VerificationRequest evidence) {
+        return checkoutResponse(client.post().uri("/internal/providers/razorpay/verify").bodyValue(evidence).retrieve(), CheckoutDtos.VerifiedPayment.class);
+    }
+    public CheckoutDtos.VerifiedPayment reconcileCheckout(String orderId) {
+        return checkoutResponse(client.get().uri("/internal/providers/razorpay/orders/{id}/reconcile", orderId).retrieve(), CheckoutDtos.VerifiedPayment.class);
+    }
+    private <T> T checkoutResponse(WebClient.ResponseSpec response, Class<T> type) {
+        try { return response.bodyToMono(type).block(Duration.ofMillis(responseTimeoutMs + 2000)); }
+        catch (WebClientResponseException ex) {
+            int status = ex.getStatusCode().value();
+            if (java.util.Set.of(400,401,403,404,409,422).contains(status)) {
+                org.springframework.http.HttpStatus mapped = status == 401 ? org.springframework.http.HttpStatus.FORBIDDEN : org.springframework.http.HttpStatus.valueOf(status);
+                ErrorCode code = ErrorCode.PROVIDER_ERROR;
+                throw new PayFlowException(code, mapped, "Provider verification was rejected");
+            }
+            throw new PayFlowException(ErrorCode.PROVIDER_UNAVAILABLE, org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "Provider verification unavailable; retry verification");
+        } catch (RuntimeException ex) {
+            throw new PayFlowException(ErrorCode.PROVIDER_UNAVAILABLE, org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "Provider verification unavailable; retry verification");
+        }
     }
     @CircuitBreaker(name = "providerService", fallbackMethod = "createPaymentFallback")
     public ProviderPaymentResponse createPayment(CreateProviderPaymentRequest request) {

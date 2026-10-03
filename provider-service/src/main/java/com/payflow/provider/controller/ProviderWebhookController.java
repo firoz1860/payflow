@@ -30,7 +30,7 @@ public class ProviderWebhookController {
                 request.getHeader("X-PayFlow-Sandbox-Signature"));
         String timestamp = request.getHeader("X-PayFlow-Timestamp");
         ProviderWebhookService.Outcome outcome =
-                webhookService.handle(provider, rawBody, signature, timestamp);
+                webhookService.handle(provider, rawBody, signature, timestamp, request.getHeader("X-Razorpay-Event-Id"));
         return ResponseEntity.ok(Map.of("status", outcome.name().toLowerCase()));
     }
     private String firstNonNull(String... values) {

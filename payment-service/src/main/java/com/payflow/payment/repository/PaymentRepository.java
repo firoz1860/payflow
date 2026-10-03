@@ -18,6 +18,7 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     Optional<Payment> findByPaymentReference(String paymentReference);
     Optional<Payment> findByPaymentReferenceAndMerchantId(String paymentReference, UUID merchantId);
     Optional<Payment> findByMerchantIdAndMerchantOrderId(UUID merchantId, String merchantOrderId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Payment> findByProviderAndProviderPaymentId(String provider, String providerPaymentId);
     Page<Payment> findByMerchantIdOrderByCreatedAtDesc(UUID merchantId, Pageable pageable);
     Page<Payment> findByMerchantIdAndStatusOrderByCreatedAtDesc(UUID merchantId, PaymentStatus status,

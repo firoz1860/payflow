@@ -24,6 +24,13 @@ class SchemaMappingTest {
         assertThat(jdbcType(attempt, "cardLast4")).isEqualTo(Types.CHAR);
     }
 
+    @Test
+    void legacyAttemptHasNullableEntityId() {
+        PersistentClass attempt = mappingFor(PaymentAttempt.class);
+        assertThat(attempt.getProperty("providerEntityPaymentId").getColumns().getFirst().isNullable()).isTrue();
+        assertThat(attempt.getProperty("providerPaymentId")).isNotNull();
+    }
+
     private PersistentClass mappingFor(Class<?> entity) {
         StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
                 .applySetting(AvailableSettings.DIALECT, PostgreSQLDialect.class)

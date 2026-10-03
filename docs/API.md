@@ -163,3 +163,13 @@ so manual webhook and deduplication tests remain deterministic.
 
 Sandbox provider events are HMAC-signed and pass through the same Provider
 Service verification, outbox, Kafka, Payment Service, and Ledger Service flow.
+
+## Razorpay TEST Checkout
+
+Authenticated, tenant-owned routes:
+
+- GET /api/v1/payments/{reference}/checkout (payments:read): returns provider, mode, keyId, orderId, amountMinor and currency. Public key only.
+- POST /api/v1/payments/{reference}/verify (payments:create): accepts orderId, paymentId and signature; validates stored order, provider signature and authoritative payment amount/currency/status.
+- POST /api/v1/payments/{reference}/reconcile (payments:read): retrieves provider evidence after delayed webhook delivery and returns current Payflow state.
+
+Cross-tenant references return 404. Browser callback success alone is not CAPTURED. LIVE creation is blocked in this test-only stage. See docs/testing/razorpay-acceptance.md for the real-provider release gate.

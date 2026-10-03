@@ -113,6 +113,31 @@ public class PaymentService {
         return writer.finaliseCreation(payment.getId(), request.paymentMethod(), providerResponse);
     }
     @Transactional
+    public void applyVerifiedProviderStatus(String provider, String orderId, String entityId, Long amountMinor,
+            String currency, String status, String failureCode, String failureMessage, String token,
+            String last4, String network, PaymentAttempt.PaymentMethod method) {
+        Payment payment = paymentRepository.findByProviderAndProviderPaymentId(provider, orderId).orElse(null);
+        if (payment == null) return;
+        if (!"razorpay".equals(provider) || entityId == null || entityId.isBlank() || amountMinor == null || amountMinor <= 0
+                || !payment.getCurrency().equals(currency)
+                || BigDecimal.valueOf(amountMinor).movePointLeft(Money.scaleOf(currency)).compareTo(payment.getAmount()) != 0)
+            throw PayFlowException.unauthorized("Provider evidence mismatch");
+        // A Razorpay order can have multiple payment attempts. A declined entity is
+        // evidence about that attempt, not a terminal outcome for the order.
+        PaymentStatus target = mapProviderStatus(status);
+        if (target == PaymentStatus.FAILED) {
+            writer.audit(payment.getMerchantId(), "PROVIDER_ATTEMPT_FAILED", payment.getPaymentReference());
+            log.info("Razorpay attempt {} failed for order {}; order remains {}", entityId, orderId, payment.getStatus());
+            return;
+        }
+        // Bind only the captured entity. Authorization or a pending attempt may
+        // precede a different successful retry; neither owns the order's funds.
+        if (target == PaymentStatus.CAPTURED)
+            attemptRepository.findByProviderAndProviderPaymentId(provider, orderId)
+                    .ifPresent(attempt -> attempt.attachProviderEntityPaymentId(entityId));
+        applyStatus(payment, provider, orderId, status, failureCode, failureMessage, token, last4, network, method);
+    }
+    @Transactional
     public void applyProviderStatus(String provider, String providerPaymentId,
                                     String providerStatus, String failureCode,
                                     String failureMessage, String instrumentToken,
@@ -125,6 +150,12 @@ public class PaymentService {
             log.warn("Provider event for unknown {} payment {}", provider, providerPaymentId);
             return;
         }
+        if ("razorpay".equals(provider)) throw PayFlowException.unauthorized("Razorpay status requires bound payment evidence");
+        applyStatus(payment, provider, providerPaymentId, providerStatus, failureCode, failureMessage, instrumentToken, cardLast4, cardNetwork, method);
+    }
+    private void applyStatus(Payment payment, String provider, String providerPaymentId, String providerStatus,
+            String failureCode, String failureMessage, String instrumentToken, String cardLast4,
+            String cardNetwork, PaymentAttempt.PaymentMethod method) {
         PaymentStatus target = mapProviderStatus(providerStatus);
         if (payment.getStatus() == target) {
             log.debug("Duplicate provider event for {}, ignoring", payment.getPaymentReference());
@@ -230,9 +261,11 @@ public class PaymentService {
     public PaymentDtos.PaymentResponse cancel(PayFlowPrincipal principal, String paymentReference,
                                               String reason) {
         UUID merchantId = TenantGuard.requireMerchant(principal);
-        Payment payment = paymentRepository
-                .findByPaymentReferenceAndMerchantId(paymentReference, merchantId)
+        Payment payment = paymentRepository.findByReferenceForUpdate(paymentReference)
+                .filter(p -> merchantId.equals(p.getMerchantId()))
                 .orElseThrow(() -> PayFlowException.notFound("Payment not found"));
+        if ("razorpay".equals(payment.getProvider()))
+            throw PayFlowException.conflict(ErrorCode.CONFLICT, "Provider cancellation is not supported; dismiss Checkout and refresh payment status");
         payment.transitionTo(PaymentStatus.CANCELLED);
         outbox.record("Payment", payment.getPaymentReference(), Topics.PAYMENT_FAILED, 1,
                 merchantId.toString(), mapper.eventPayload(payment));

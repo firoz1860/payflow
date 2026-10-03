@@ -40,6 +40,7 @@ class ProviderWebhookServiceTest {
              "status":"CAPTURED","paymentMethod":"CARD","cardLast4":"4242"}""";
     @BeforeEach
     void setUp() {
+        when(eventRepository.insertIfAbsent(any(), any(), any(), any(), any(), any())).thenReturn(1);
         ProviderProperties properties = new ProviderProperties();
         PaymentGateway sandbox = new SandboxPaymentGateway(properties, new ObjectMapper(),
                 new QrCodeRenderer(), event -> { });

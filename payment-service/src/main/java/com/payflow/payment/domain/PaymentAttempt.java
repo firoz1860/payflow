@@ -30,6 +30,16 @@ public class PaymentAttempt {
     private String provider;
     @Column(name = "provider_payment_id", length = 128)
     private String providerPaymentId;
+    @Column(name = "provider_entity_payment_id", length = 128)
+    private String providerEntityPaymentId;
+    public String getProviderEntityPaymentId() { return providerEntityPaymentId; }
+    public void attachProviderEntityPaymentId(String id) {
+        if (providerEntityPaymentId != null && !providerEntityPaymentId.equals(id)) {
+            throw new IllegalStateException("Payment attempt already bound to a provider payment");
+        }
+        providerEntityPaymentId = id;
+        touch();
+    }
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_method", length = 16)
     private PaymentMethod paymentMethod;
