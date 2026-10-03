@@ -33,6 +33,6 @@ public class MerchantApiKeyVerifier implements ApiKeyVerifier {
     @SuppressWarnings("unused")
     private Verification verifyFallback(String rawApiKey, Throwable throwable) {
         log.error("Merchant service unavailable during API key verification: {}", throwable.toString());
-        return Verification.invalid("Authentication service is temporarily unavailable");
+        throw new ApiKeyVerifier.UnavailableException(throwable);
     }
 }

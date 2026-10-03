@@ -46,7 +46,16 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             reject(response, "Publishable keys cannot be used for this operation");
             return;
         }
-        ApiKeyVerifier.Verification verification = verifier.verify(credential);
+        ApiKeyVerifier.Verification verification;
+        try {
+            verification = verifier.verify(credential);
+        } catch (ApiKeyVerifier.UnavailableException ex) {
+            response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            objectMapper.writeValue(response.getOutputStream(), ApiErrorResponse.of(
+                    ErrorCode.AUTHENTICATION_UNAVAILABLE, "Authentication service is temporarily unavailable", CorrelationId.get()));
+            return;
+        }
         if (!verification.valid()) {
             log.debug("API key rejected: {}", verification.reason());
             reject(response, verification.reason() == null ? "Invalid API key" : verification.reason());
