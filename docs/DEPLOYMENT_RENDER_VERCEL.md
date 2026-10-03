@@ -270,7 +270,7 @@ These are backend capability gaps, not missing frontend API wiring:
 4. The standalone Risk Service is absent; the Payment Service's defined fail-open/fail-review fallback remains active.
 5. The sandbox provider is for functional testing, not real money movement.
 6. Public registration is intentionally tenant-safe: a new signup creates its own merchant as `MERCHANT_OWNER`; callers cannot self-assign an existing `merchantId` or a privileged role. A complete invitation/onboarding flow for adding a brand-new user to an existing merchant is not part of the current core.
-7. Razorpay non-QR LIVE order creation exists in the backend, but the current frontend does not embed the Razorpay Checkout browser widget.
+7. Razorpay TEST Checkout is implemented. Real-provider acceptance still requires securely configured test credentials and dashboard verification; LIVE creation remains blocked in this stage.
 
 These limitations should not be represented as completed production features until their backend/UI pieces are added.
 
