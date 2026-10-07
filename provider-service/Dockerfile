@@ -13,6 +13,7 @@ COPY merchant-service/pom.xml merchant-service/
 COPY payment-service/pom.xml payment-service/
 COPY provider-service/pom.xml provider-service/
 COPY ledger-service/pom.xml ledger-service/
+COPY ai-agent-service/pom.xml ai-agent-service/
 RUN mvn -B -q -pl payflow-common,provider-service -am dependency:go-offline -DskipTests || true
 
 COPY payflow-common/src payflow-common/src

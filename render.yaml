@@ -271,6 +271,68 @@ services:
       - key: JAVA_TOOL_OPTIONS
         value: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k -XX:MaxMetaspaceSize=140m -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
 
+  - type: pserv
+    name: payflow-ai-agent-service
+    runtime: docker
+    plan: 0.5c-512mb
+    region: singapore
+    rootDir: .
+    dockerContext: .
+    dockerfilePath: ./ai-agent-service/Dockerfile
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT
+        value: "8096"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: payflow-db
+          property: connectionString
+      - key: PAYFLOW_DB_SCHEMA
+        value: ai
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+        value: "1"
+      - key: SPRING_DATA_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: payflow-redis
+          property: connectionString
+      - key: JWT_SECRET
+        fromService:
+          type: pserv
+          name: payflow-auth
+          envVarKey: JWT_SECRET
+      - key: PAYFLOW_INTERNAL_TOKEN
+        fromService:
+          type: pserv
+          name: payflow-auth
+          envVarKey: PAYFLOW_INTERNAL_TOKEN
+      - key: MERCHANT_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-merchant
+          property: hostport
+      - key: PAYMENT_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-payment
+          property: hostport
+      - key: PROVIDER_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-provider
+          property: hostport
+      - key: LEDGER_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-ledger
+          property: hostport
+      - key: AI_AGENT_ENABLED
+        value: "true"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k -XX:MaxMetaspaceSize=140m -XX:TieredStopAtLevel=1 -Dspring.jmx.enabled=false"
+
   - type: web
     name: payflow-api-gateway
     runtime: docker
@@ -318,6 +380,11 @@ services:
         fromService:
           type: pserv
           name: payflow-ledger
+          property: hostport
+      - key: AI_AGENT_SERVICE_HOSTPORT
+        fromService:
+          type: pserv
+          name: payflow-ai-agent-service
           property: hostport
       - key: PAYFLOW_CORS_ORIGINS
         sync: false

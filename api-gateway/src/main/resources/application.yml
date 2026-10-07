@@ -145,6 +145,21 @@ spring:
                 key-resolver: "#{@apiKeyOrIpKeyResolver}"
                 redis-rate-limiter.replenishRate: 10
                 redis-rate-limiter.burstCapacity: 20
+        - id: ai-service
+          uri: ${AI_AGENT_SERVICE_URL:http://${AI_AGENT_SERVICE_HOSTPORT:localhost:8096}}
+          predicates:
+            - Path=/api/v1/ai/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@apiKeyOrIpKeyResolver}"
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 8
+                redis-rate-limiter.requestedTokens: 1
+            - name: CircuitBreaker
+              args:
+                name: aiService
+                fallbackUri: forward:/fallback/service-unavailable
 payflow:
   jwt:
     secret: ${JWT_SECRET:${JWT_PUBLIC_SECRET:change-me-in-env-at-least-64-bytes-of-entropy-for-hs512-signing!}}
@@ -174,6 +189,7 @@ resilience4j:
       paymentServiceCircuit: { baseConfig: default }
       providerServiceCircuit: { baseConfig: default }
       ledgerServiceCircuit: { baseConfig: default }
+      aiService: { baseConfig: default }
   timelimiter:
     configs:
       default:

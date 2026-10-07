@@ -92,6 +92,8 @@ jobs:
             dockerfile: provider-service/Dockerfile
           - name: ledger-service
             dockerfile: ledger-service/Dockerfile
+          - name: ai-agent-service
+            dockerfile: ai-agent-service/Dockerfile
           - name: kafka
             dockerfile: infrastructure/render/kafka/Dockerfile
     steps:
