@@ -1,0 +1,7 @@
+# gitleaks finding fingerprints to ignore — one narrowly-scoped entry only.
+# This is a SYNTHETIC fake JWT in PromptInjectionTest, present purely to prove the
+# Redactor strips JWTs before anything reaches the LLM. It is not a real secret.
+# gitleaks scans the whole PR commit range, so the finding is anchored to the
+# commit that introduced the fixture. No rule is disabled; only this exact
+# finding (commit:file:rule:line) is ignored.
+f05de5292af327ca0bf0090678288d7b310d7736:ai-agent-service/src/test/java/com/payflow/ai/agent/PromptInjectionTest.java:jwt:63
