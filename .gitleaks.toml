@@ -3,13 +3,18 @@ title = "PayFlow Gitleaks configuration"
 [extend]
 useDefault = true
 
+# This is a single historical false-positive from a synthetic JWT fixture used
+# by PromptInjectionTest. The current source no longer contains the token as one
+# literal string, but Gitleaks scans the full PR commit range, so the original
+# commit must be narrowly allowlisted. Restrict the exception to the JWT rule,
+# exact historical commit, and exact test path.
 [[allowlists]]
-description = "Synthetic JWT fixture used only by the AI prompt-injection redaction test"
+description = "Historical synthetic JWT fixture in PromptInjectionTest only"
 condition = "AND"
+targetRules = ["jwt"]
+commits = [
+  "f05de5292af327ca0bf0090678288d7b310d7736"
+]
 paths = [
   '''^ai-agent-service/src/test/java/com/payflow/ai/agent/PromptInjectionTest\.java$'''
-]
-regexTarget = "line"
-regexes = [
-  '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiJhZG1pbiJ9\.s3cr3t-signature_ABC'''
 ]
