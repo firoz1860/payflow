@@ -1,0 +1,15 @@
+title = "PayFlow Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Synthetic JWT fixture used only by the AI prompt-injection redaction test"
+condition = "AND"
+paths = [
+  '''^ai-agent-service/src/test/java/com/payflow/ai/agent/PromptInjectionTest\.java$'''
+]
+regexTarget = "line"
+regexes = [
+  '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiJhZG1pbiJ9\.s3cr3t-signature_ABC'''
+]
