@@ -22,6 +22,7 @@ import { DevelopersPage } from './pages/DevelopersPage';
 import { AdminMerchantsPage } from './pages/AdminMerchantsPage';
 import { AdminMerchantDetailPage } from './pages/AdminMerchantDetailPage';
 import { AdminRolesPage } from './pages/AdminRolesPage';
+import { CopilotPage } from './pages/CopilotPage';
 
 const protectedPage = (page: React.ReactNode, permission?: string) => (
   <ProtectedRoute permission={permission}>
@@ -50,6 +51,7 @@ export default function App() {
       <Route path="/analytics" element={protectedPage(<AnalyticsPage />, 'payments:read')} />
       <Route path="/webhooks" element={protectedPage(<WebhooksPage />, 'webhooks:manage')} />
       <Route path="/developers" element={protectedPage(<DevelopersPage />)} />
+      <Route path="/ai" element={protectedPage(<CopilotPage />, 'ai:use')} />
 
       <Route path="/api-keys" element={protectedPage(<ApiKeysPage />, 'api_keys:manage')} />
       <Route path="/merchant" element={protectedPage(<MerchantProfilePage />, 'merchant:read')} />

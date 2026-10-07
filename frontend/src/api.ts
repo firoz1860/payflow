@@ -87,6 +87,11 @@ export function extractErrorCode(err: unknown): string {
   if (axios.isAxiosError<ApiError>(err)) {
     return err.response?.data?.code || '';
   }
+  // Non-axios errors (e.g. an SSE `event: error` surfaced as CopilotError) may
+  // carry the same {code} contract on a string `code` property.
+  if (err && typeof err === 'object' && 'code' in err && typeof (err as { code: unknown }).code === 'string') {
+    return (err as { code: string }).code;
+  }
   return '';
 }
 

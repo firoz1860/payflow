@@ -16,6 +16,7 @@ import {
   Receipt,
   Settings,
   ShieldCheck,
+  Sparkles,
   Users,
   Webhook,
   X,
@@ -30,6 +31,7 @@ const paymentNav = [
   { to: '/payments', label: 'Payments', icon: CreditCard, perm: 'payments:read' },
   { to: '/payments/create', label: 'Create Payment', icon: Receipt, perm: 'payments:create' },
   { to: '/payments/qr', label: 'QR Payments', icon: QrCode, perm: 'payments:create' },
+  { to: '/ai', label: 'Copilot', icon: Sparkles, perm: 'ai:use' },
 ];
 
 const platformNav = [
