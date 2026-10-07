@@ -143,6 +143,7 @@ flowchart TB
 | `payment-service` | 8085 | Payment lifecycle, payment attempts, idempotency, risk gate, outbox |
 | `provider-service` | 8086 | `PaymentGateway` abstraction, sandbox + Razorpay adapters, webhook verification and dedup |
 | `ledger-service` | 8088 | Double-entry accounts, postings, entries, reversals, integrity job |
+| `ai-agent-service` | 8096 | PayFlow Copilot — BYOK, read-only evidence tools, FACT/INFERENCE/MISSING investigation ([docs/AI_AGENT.md](docs/AI_AGENT.md)) |
 
 ---
 
