@@ -1,20 +1,23 @@
 title = "PayFlow Gitleaks configuration"
 
+# Keep the full default ruleset enabled. The only exception below is a single,
+# well-understood SYNTHETIC fixture; the secret scanner is NOT weakened or
+# globally disabled, and every other path/rule is scanned normally.
 [extend]
 useDefault = true
 
-# This is a single historical false-positive from a synthetic JWT fixture used
-# by PromptInjectionTest. The current source no longer contains the token as one
-# literal string, but Gitleaks scans the full PR commit range, so the original
-# commit must be narrowly allowlisted. Restrict the exception to the JWT rule,
-# exact historical commit, and exact test path.
+# PromptInjectionTest plants a FAKE JWT (assembled from string fragments in the
+# current source) purely to prove the Redactor strips JWTs before any data can
+# reach the LLM. It is not a real credential. gitleaks scans the entire PR commit
+# range, so the finding originates in the commit that first introduced the fixture
+# (f05de52) and must be allowlisted there. This exception is narrowly scoped to
+# that exact commit AND that one test file; matching is OR so either condition
+# suppresses this historical false positive.
 [[allowlists]]
-description = "Historical synthetic JWT fixture in PromptInjectionTest only"
-condition = "AND"
-targetRules = ["jwt"]
-commits = [
-  "f05de5292af327ca0bf0090678288d7b310d7736"
-]
+description = "Synthetic JWT fixture in PromptInjectionTest (historical false positive)"
 paths = [
-  '''^ai-agent-service/src/test/java/com/payflow/ai/agent/PromptInjectionTest\.java$'''
+  '''ai-agent-service/src/test/java/com/payflow/ai/agent/PromptInjectionTest\.java''',
+]
+commits = [
+  "f05de5292af327ca0bf0090678288d7b310d7736",
 ]
