@@ -85,6 +85,9 @@ public class LedgerPosting {
     public String getDescription() {
         return description;
     }
+    public String getCorrelationId() {
+        return correlationId;
+    }
     public Instant getCreatedAt() {
         return createdAt;
     }
