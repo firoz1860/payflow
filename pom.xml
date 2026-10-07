@@ -23,6 +23,7 @@
         <module>payment-service</module>
         <module>provider-service</module>
         <module>ledger-service</module>
+        <module>ai-agent-service</module>
     </modules>
     <properties>
         <java.version>21</java.version>
