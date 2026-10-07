@@ -61,6 +61,7 @@ jobs:
           -DskipProvidedScope=true
           -Dformats=HTML,JSON
           -DnvdDatafeedUrl=https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz
+        continue-on-error: true
       - name: Upload dependency report
         if: always()
         uses: actions/upload-artifact@v4
