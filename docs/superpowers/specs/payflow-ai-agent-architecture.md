@@ -70,10 +70,15 @@ down, payment APIs are unaffected (ai-service failures are isolated).
    asserts it equals the principal's merchantId (platform-admin with `ai:admin`
    may cross tenants). Cross-tenant → **404-style "not found"**, never
    "belongs to another merchant" (matches `TenantGuard` non-enumeration behaviour).
-7. **LLM abstraction** `LlmClient.complete(AgentRequest) → AgentCompletion` with an
-   Anthropic implementation. Config entirely from env; **if no key, the whole app
-   still works** and AI endpoints return `503 AI_UNAVAILABLE` (a clean
-   feature-unavailable response). No payment functionality depends on an LLM vendor.
+7. **LLM abstraction is BYOK (Bring Your Own Key) + vendor-abstracted.**
+   Interfaces `LlmClient`, `LlmProvider`, `LlmCredentialProvider`. Pluggable
+   implementations: `AnthropicLlmClient`, `OpenAiLlmClient`, `GeminiLlmClient`,
+   `XAiLlmClient`, plus a custom OpenAI-compatible base. **No owner LLM secret is
+   required for startup.** Credential resolution priority: (1) the authenticated
+   user's temporary BYOK credential, (2) an optional server env credential
+   (fallback), (3) `AI_KEY_REQUIRED`. See §4a. If no credential is active, all
+   normal PayFlow functionality continues and AI endpoints return a structured
+   `AI_KEY_REQUIRED` (never a crash). No payment functionality depends on an LLM vendor.
 8. **V1 is read-first.** No write/action tools. The approval data model is built
    (`ai_approvals`, statuses PENDING/APPROVED/REJECTED/EXPIRED/EXECUTED/FAILED) but
    no action executes in V1.
@@ -93,9 +98,29 @@ down, payment APIs are unaffected (ai-service failures are isolated).
   expires_at, approving_user_id, execution_result_ref)`.
 - `ai_feedback(id, message_id, user_id, rating, comment, created_at)`.
 
-**Never stored:** API-key secrets, provider secrets, JWTs, refresh tokens, DB
-creds, PAN/CVV, raw infra credentials. Retention: `AI_CONVERSATION_RETENTION_DAYS`
-(default 30) via a `@Scheduled` cleanup job.
+**Never stored:** API-key secrets, provider secrets (incl. BYOK LLM keys), JWTs,
+refresh tokens, DB creds, PAN/CVV, raw infra credentials. Retention:
+`AI_CONVERSATION_RETENTION_DAYS` (default 30) via a `@Scheduled` cleanup job.
+
+## 4a. BYOK credential handling (security-critical)
+
+The browser submits the user's LLM key once over HTTPS to the authenticated AI
+backend; it is **never** used Anthropic/OpenAI-direct from React.
+
+- `LlmCredentialProvider` resolves, per request: user BYOK credential → optional
+  server env fallback → none (`AI_KEY_REQUIRED`).
+- BYOK keys live in an **in-memory, session/user-scoped store with a short TTL**
+  (`AI_BYOK_TTL_MINUTES`, default 60), keyed by userId. Erased on logout,
+  disconnect, session expiry, or explicit "Remove API key".
+- **Never:** hardcode, commit, log, URL/query-param, persist in Postgres,
+  localStorage, sessionStorage, or Zustand-persisted state; never return the raw
+  key to the browser; never expose it in errors/telemetry/audit/traces.
+- Endpoints: `POST /api/v1/ai/credentials` (provider + key → stores ephemerally,
+  returns safe metadata only), `GET /api/v1/ai/credentials` (status), `DELETE`
+  (erase). Safe metadata shape:
+  `{ "provider": "anthropic", "connected": true, "maskedKey": "sk-ant-...7K2", "expiresAt": "..." }`.
+- `AiProvider` enum: `ANTHROPIC, OPENAI, GEMINI, XAI, CUSTOM_OPENAI_COMPATIBLE`.
+  The redaction layer also masks any value starting `sk-`, `sk-ant-`, `sk_`, `pk_`.
 
 ## 5. Tool registry (V1 — all READ-ONLY)
 
@@ -176,11 +201,14 @@ health check, (4) unresolved-payment review (read-only; never changes status).
 
 ## 11. Environment variables
 
-Server-only: `AI_AGENT_ENABLED`, `AI_PROVIDER=anthropic`, `AI_MODEL`,
-`ANTHROPIC_API_KEY`, `AI_MAX_TOOL_CALLS`, `AI_MAX_HISTORY_MESSAGES`,
-`AI_REQUEST_TIMEOUT_SECONDS`, `AI_CONVERSATION_RETENTION_DAYS`, `JWT_SECRET`,
-`PAYFLOW_INTERNAL_TOKEN`, `N8N_*`, downstream `payflow.services.*-url`.
-Frontend: only `VITE_API_URL` (public). **No AI secret is ever `VITE_*`.**
+Server-only, **none required for startup**: `AI_AGENT_ENABLED`,
+`AI_DEFAULT_PROVIDER` (optional default), `AI_DEFAULT_MODEL`, `AI_BYOK_TTL_MINUTES`
+(60), `AI_MAX_TOOL_CALLS` (8), `AI_MAX_HISTORY_MESSAGES` (30),
+`AI_REQUEST_TIMEOUT_SECONDS` (45), `AI_CONVERSATION_RETENTION_DAYS` (30),
+`JWT_SECRET`, `PAYFLOW_INTERNAL_TOKEN`, `N8N_*`, downstream `payflow.services.*-url`.
+Optional server-owned LLM fallbacks (never required): `ANTHROPIC_API_KEY`,
+`OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`.
+Frontend: only `VITE_API_URL` (public). **No AI/LLM secret is ever `VITE_*`.**
 
 ## 12. Build sequence (maps to the prompt's stages)
 
