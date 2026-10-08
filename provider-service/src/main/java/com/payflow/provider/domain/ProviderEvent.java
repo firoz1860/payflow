@@ -90,4 +90,10 @@ public class ProviderEvent {
     public Instant getReceivedAt() {
         return receivedAt;
     }
+    public Instant getProcessedAt() {
+        return processedAt;
+    }
+    public String getFailureReason() {
+        return failureReason;
+    }
 }

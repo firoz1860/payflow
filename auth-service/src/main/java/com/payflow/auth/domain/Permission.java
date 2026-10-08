@@ -13,7 +13,9 @@ public enum Permission {
     MERCHANT_READ("merchant:read"),
     TEAM_MANAGE("team:manage"),
     LEDGER_READ("ledger:read"),
-    PLATFORM_ADMIN("platform:admin");
+    PLATFORM_ADMIN("platform:admin"),
+    AI_USE("ai:use"),
+    AI_ADMIN("ai:admin");
     private final String value;
     Permission(String value) {
         this.value = value;

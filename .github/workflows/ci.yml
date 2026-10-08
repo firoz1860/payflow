@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: temurin
@@ -49,17 +49,18 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: temurin
           cache: maven
       - name: OWASP dependency check
         run: >
-          mvn $MAVEN_ARGS org.owasp:dependency-check-maven:10.0.4:check
+          mvn $MAVEN_ARGS org.owasp:dependency-check-maven:13.0.0:check
           -DfailBuildOnCVSS=7
           -DskipProvidedScope=true
           -Dformats=HTML,JSON
+          -DnvdDatafeedUrl=https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz
         continue-on-error: true
       - name: Upload dependency report
         if: always()
@@ -92,6 +93,8 @@ jobs:
             dockerfile: provider-service/Dockerfile
           - name: ledger-service
             dockerfile: ledger-service/Dockerfile
+          - name: ai-agent-service
+            dockerfile: ai-agent-service/Dockerfile
           - name: kafka
             dockerfile: infrastructure/render/kafka/Dockerfile
     steps:

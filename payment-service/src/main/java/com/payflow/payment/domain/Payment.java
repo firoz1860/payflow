@@ -240,6 +240,9 @@ public class Payment {
     public Instant getExpiresAt() {
         return expiresAt;
     }
+    public Instant getAuthorizedAt() {
+        return authorizedAt;
+    }
     public Instant getCapturedAt() {
         return capturedAt;
     }

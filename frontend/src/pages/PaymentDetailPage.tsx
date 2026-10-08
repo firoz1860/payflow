@@ -1,8 +1,8 @@
 import { RazorpayCheckout } from '../components/RazorpayCheckout';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Copy, CheckCircle2, XCircle, Clock, QrCode, RefreshCw, XCircle as Cancel,
+  ArrowLeft, Copy, CheckCircle2, XCircle, Clock, QrCode, RefreshCw, XCircle as Cancel, Sparkles,
 } from 'lucide-react';
 import { getPayment, cancelPayment } from '../services/paymentService';
 import { PageHeader } from '../components/PageHeader';
@@ -12,11 +12,14 @@ import { Modal } from '../components/Modal';
 import { toast } from '../components/Toast';
 import { extractError } from '../api';
 import { formatCurrency, formatDateTime } from '../lib/utils';
+import { useAuthStore } from '../store/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Payment } from '../types';
 
 export function PaymentDetailPage() {
   const { reference } = useParams<{ reference: string }>();
+  const navigate = useNavigate();
+  const hasPermission = useAuthStore((s) => s.hasPermission);
   const pollDeadline = useRef(Date.now() + 60000);
   useEffect(() => { pollDeadline.current = Date.now() + 60000; }, [reference]);
   const [payment, setPayment] = useState<Payment | null>(null);
@@ -92,6 +95,18 @@ export function PaymentDetailPage() {
         ]}
         actions={
           <div className="flex gap-2">
+            {hasPermission('ai:use') && (
+              <button
+                onClick={() =>
+                  navigate('/ai', {
+                    state: { resourceType: 'PAYMENT', resourceReference: payment.paymentReference },
+                  })
+                }
+                className="btn-secondary"
+              >
+                <Sparkles className="w-4 h-4 text-blue-600" /> Ask Copilot
+              </button>
+            )}
             <button onClick={load} className="btn-secondary"><RefreshCw className="w-4 h-4" /> Refresh</button>
             {canCancel && (
               <button onClick={() => setCancelOpen(true)} className="btn-danger">

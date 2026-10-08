@@ -1,0 +1,107 @@
+server:
+  port: ${PORT:8096}
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+    include-message: never
+spring:
+  application:
+    name: ai-agent-service
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:ai_agent_db}
+    username: ${POSTGRES_USER:payflow}
+    password: ${POSTGRES_PASSWORD:payflow}
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
+      minimum-idle: ${SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE:2}
+      connection-timeout: 3000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+payflow:
+  jwt:
+    secret: ${JWT_SECRET}
+    issuer: payflow-auth
+  internal:
+    token: ${PAYFLOW_INTERNAL_TOKEN}
+    response-timeout-ms: ${PAYFLOW_INTERNAL_RESPONSE_TIMEOUT_MS:12000}
+    connect-timeout-ms: ${PAYFLOW_INTERNAL_CONNECT_TIMEOUT_MS:10000}
+  services:
+    merchant-url: ${MERCHANT_SERVICE_URL:http://${MERCHANT_SERVICE_HOSTPORT:localhost:8082}}
+    payment-url: ${PAYMENT_SERVICE_URL:http://${PAYMENT_SERVICE_HOSTPORT:localhost:8085}}
+    provider-url: ${PROVIDER_SERVICE_URL:http://${PROVIDER_SERVICE_HOSTPORT:localhost:8086}}
+    ledger-url: ${LEDGER_SERVICE_URL:http://${LEDGER_SERVICE_HOSTPORT:localhost:8088}}
+  # Outbox is intentionally NOT enabled for ai-agent-service in V1.
+  outbox:
+    enabled: false
+  ai:
+    enabled: ${AI_AGENT_ENABLED:true}
+    default-provider: ${AI_DEFAULT_PROVIDER:}
+    default-model: ${AI_DEFAULT_MODEL:}
+    byok-ttl-minutes: ${AI_BYOK_TTL_MINUTES:60}
+    max-tool-calls: ${AI_MAX_TOOL_CALLS:8}
+    max-history-messages: ${AI_MAX_HISTORY_MESSAGES:30}
+    request-timeout-seconds: ${AI_REQUEST_TIMEOUT_SECONDS:45}
+    conversation-retention-days: ${AI_CONVERSATION_RETENTION_DAYS:30}
+    # Optional server-owned fallbacks — none required for startup.
+    server-keys:
+      anthropic: ${ANTHROPIC_API_KEY:}
+      openai: ${OPENAI_API_KEY:}
+      gemini: ${GEMINI_API_KEY:}
+      xai: ${XAI_API_KEY:}
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 50
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 3s
+        waitDurationInOpenState: 20s
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+    instances:
+      merchantService: { baseConfig: default }
+      paymentService: { baseConfig: default }
+      providerService: { baseConfig: default }
+      ledgerService: { baseConfig: default }
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,circuitbreakers
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+  health:
+    circuitbreakers:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
