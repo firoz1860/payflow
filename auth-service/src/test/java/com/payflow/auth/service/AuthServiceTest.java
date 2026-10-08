@@ -56,7 +56,7 @@ class AuthServiceTest {
         jwtProperties.setSecret("x".repeat(64));
         authService = new AuthService(userRepository, roleRepository, refreshTokenRepository,
                 oneTimeTokenRepository, passwordEncoder, jwtService, jwtProperties, outbox,
-                merchantRegistrationClient, false);
+                merchantRegistrationClient, false, true);
     }
     private User activeUser(String password) {
         User user = new User("owner@test.local", passwordEncoder.encode(password),
