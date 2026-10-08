@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
-import { login } from '../services/authService';
+import { Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, UserRound } from 'lucide-react';
+import { login, guestLogin } from '../services/authService';
 import { useAuthStore } from '../store/auth';
 import { extractError } from '../api';
 import { toast } from '../components/Toast';
@@ -16,7 +16,23 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleGuest = async () => {
+    setError('');
+    setGuestLoading(true);
+    try {
+      const res = await guestLogin();
+      loginStore(res.accessToken, res.refreshToken, res.user);
+      toast('success', 'Signed in as a guest — explore the demo.');
+      navigate('/dashboard');
+    } catch (err) {
+      setError(extractError(err));
+    } finally {
+      setGuestLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,6 +129,29 @@ export function LoginPage() {
               )}
             </motion.button>
           </form>
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-3 text-xs uppercase tracking-wider text-slate-400">or</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGuest}
+            disabled={guestLoading || loading}
+            className="btn-secondary w-full"
+          >
+            {guestLoading ? <Spinner size="sm" /> : (
+              <>Continue as guest <UserRound className="h-4 w-4" /></>
+            )}
+          </button>
+          <p className="mt-2 text-center text-xs text-slate-400">
+            Spins up a temporary demo merchant — no signup, no real money.
+          </p>
 
           <div className="flex items-center justify-between mt-6 text-sm">
             <Link to="/register" className="font-medium text-brand-600 hover:text-brand-700">Create account</Link>
