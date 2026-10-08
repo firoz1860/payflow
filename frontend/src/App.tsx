@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
+import { useAuthStore } from './store/auth';
+import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
@@ -29,6 +31,12 @@ const protectedPage = (page: React.ReactNode, permission?: string) => (
     <Layout>{page}</Layout>
   </ProtectedRoute>
 );
+
+// Public landing page for visitors; authenticated users go straight to the app.
+function RootRoute() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />;
+}
 
 export default function App() {
   return (
@@ -62,7 +70,7 @@ export default function App() {
       <Route path="/admin/merchants/:id" element={protectedPage(<AdminMerchantDetailPage />, 'platform:admin')} />
       <Route path="/admin/roles" element={protectedPage(<AdminRolesPage />, 'platform:admin')} />
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<RootRoute />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

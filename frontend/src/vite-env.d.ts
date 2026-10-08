@@ -11,6 +11,11 @@ interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
   /** Optional local Vite proxy target. Defaults to http://localhost:8000. */
   readonly VITE_DEV_API_PROXY?: string;
+  /**
+   * Optional published Spline scene URL (*.splinecode) for the landing / auth
+   * hero. When unset, the hero renders its built-in animated fallback.
+   */
+  readonly VITE_SPLINE_SCENE_URL?: string;
 }
 
 interface ImportMeta {
