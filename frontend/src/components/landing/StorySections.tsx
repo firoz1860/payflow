@@ -1,30 +1,27 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, Minus, Plus, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ChevronDown, Minus, Plus, ShieldCheck } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import {
   AUDIENCES,
   CAPABILITIES,
-  DECISIONS,
-  PAYMENT_FLOW,
+  FAQ,
+  HOW_STEPS,
+  RELIABILITY,
   RELIABILITY_STATS,
   SECURITY,
   SERVICE_GROUPS,
   SERVICES,
+  TECHNICAL_FLOW,
+  WHY_PROBLEMS,
   type Service,
 } from './landingContent';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-const container = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
-};
+const container = { hidden: {}, show: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } } };
+const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } } };
 
 /** A scroll-revealed section. Reveal reverses naturally on scroll-up; static under reduced motion. */
 function StorySection({ id, children, className }: { id?: string; children: ReactNode; className?: string }) {
@@ -50,12 +47,26 @@ function StorySection({ id, children, className }: { id?: string; children: Reac
   );
 }
 
-function SectionHeading({ eyebrow, title, intro }: { eyebrow: string; title: string; intro?: string }) {
+function SectionHeading({
+  eyebrow,
+  title,
+  intro,
+  dark,
+}: {
+  eyebrow: string;
+  title: string;
+  intro?: string;
+  dark?: boolean;
+}) {
   return (
     <div className="mx-auto max-w-2xl text-center">
-      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{eyebrow}</span>
-      <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{title}</h2>
-      {intro && <p className="mt-4 text-lg leading-relaxed text-slate-600">{intro}</p>}
+      <span className={cn('text-xs font-semibold uppercase tracking-[0.18em]', dark ? 'text-brand-300' : 'text-brand-600')}>
+        {eyebrow}
+      </span>
+      <h2 className={cn('mt-3 text-3xl font-bold tracking-tight sm:text-4xl', dark ? 'text-white' : 'text-slate-900')}>
+        {title}
+      </h2>
+      {intro && <p className={cn('mt-4 text-lg leading-relaxed', dark ? 'text-slate-300' : 'text-slate-600')}>{intro}</p>}
     </div>
   );
 }
@@ -152,6 +163,11 @@ function ExpandableCard({
   );
 }
 
+/**
+ * CoreCapabilities — the panel that rises over the hero in the curtain
+ * transition. It is a plain opaque section (no scroll-fade) so the overlap is
+ * its reveal; LandingPage supplies the rounded top + stacking.
+ */
 export function CoreCapabilities() {
   const [expanded, setExpanded] = useState<string | null>(null);
   useEffect(() => {
@@ -161,11 +177,11 @@ export function CoreCapabilities() {
   }, []);
 
   return (
-    <StorySection id="platform" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+    <section id="platform" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-20 sm:px-6 lg:px-8">
       <SectionHeading
-        eyebrow="Core capabilities"
-        title="Everything a merchant integration needs"
-        intro="Create payments, take UPI QR checkouts, keep a balanced ledger, and watch it all from one dashboard. Select a capability to read how it works."
+        eyebrow="What you can do"
+        title="Collect payments. Track outcomes. Understand the records."
+        intro="A clear view of payment activity for merchants, and the APIs and controls developers need to integrate it. Select a capability to read how it works."
       />
       <motion.div
         variants={container}
@@ -187,54 +203,116 @@ export function CoreCapabilities() {
           />
         ))}
       </motion.div>
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------------- why payflow */
+
+export function WhyPayFlow() {
+  return (
+    <StorySection id="why" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <SectionHeading
+        eyebrow="Why PayFlow"
+        title="A payment involves more than a success screen."
+        intro="A customer can finish checkout while the confirmation arrives late. A request can time out and be retried. A provider can deliver the same webhook twice. Handled carelessly, these create duplicates, confusing statuses, or inconsistent records."
+      />
+      <motion.div
+        variants={container}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.2 }}
+        className="mt-12 grid gap-5 md:grid-cols-3"
+      >
+        {WHY_PROBLEMS.map((p) => (
+          <motion.div key={p.problem} variants={item} className="card p-6">
+            <p className="text-xs font-semibold uppercase tracking-wider text-rose-500">Problem</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">{p.problem}</p>
+            <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-brand-600">Approach</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">{p.approach}</p>
+          </motion.div>
+        ))}
+      </motion.div>
+      <p className="mx-auto mt-10 max-w-2xl text-center text-base text-slate-500">
+        PayFlow connects payment requests, verified provider events, and ledger entries so merchants can see what
+        happened — and developers can investigate why.
+      </p>
     </StorySection>
   );
 }
 
-/* ------------------------------------------------------------- payment flow */
+/* ---------------------------------------------------------------- how it works */
 
-export function PaymentFlowSection() {
+export function HowItWorks() {
+  const [tech, setTech] = useState(false);
   return (
-    <StorySection className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+    <StorySection id="how" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
       <Surface className="px-4 py-16 sm:px-10">
         <SectionHeading
-          eyebrow="How a payment moves"
-          title="One request in, a balanced ledger out"
-          intro="The browser’s “payment successful” is never trusted — only a signature-verified provider webhook moves a payment to CAPTURED."
+          eyebrow="How it works"
+          title="From a payment request to a traceable record."
+          intro="PayFlow coordinates the steps between your application, the payment provider, and the ledger. Each step has a clear responsibility."
         />
         <motion.ol
           variants={container}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, amount: 0.2 }}
-          className="mt-14 grid gap-6 md:grid-cols-7"
+          viewport={{ once: true, amount: 0.15 }}
+          className="mx-auto mt-12 grid max-w-3xl gap-4"
         >
-          {PAYMENT_FLOW.map((step, i) => (
-            <motion.li key={step.label} variants={item} className="relative flex gap-4 md:flex-col md:gap-3">
-              <div className="flex md:flex-col md:items-start">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white shadow-sm shadow-blue-500/30">
-                  {i + 1}
-                </span>
-                {i < PAYMENT_FLOW.length - 1 && (
-                  <span className="mt-2 hidden h-px w-full flex-1 bg-gradient-to-r from-brand-300 to-transparent md:block" />
-                )}
-              </div>
+          {HOW_STEPS.map((step, i) => (
+            <motion.li key={step.title} variants={item} className="flex gap-4">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white">
+                {i + 1}
+              </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-900">{step.label}</p>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">{step.note}</p>
+                <p className="text-sm font-semibold text-slate-900">{step.title}</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">{step.body}</p>
               </div>
             </motion.li>
           ))}
         </motion.ol>
+
+        <div className="mx-auto mt-8 max-w-3xl">
+          <button
+            type="button"
+            aria-expanded={tech}
+            onClick={() => setTech((t) => !t)}
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-brand-700 outline-none transition hover:text-brand-800 focus-visible:ring-2 focus-visible:ring-blue-500/50"
+          >
+            <ChevronDown className={cn('h-4 w-4 transition-transform', tech && 'rotate-180')} />
+            Technical details
+          </button>
+          <AnimatePresence initial={false}>
+            {tech && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3, ease: EASE }}
+                className="overflow-hidden"
+              >
+                <ul className="mt-3 space-y-2 rounded-2xl border border-slate-200/70 bg-white/70 p-5">
+                  {TECHNICAL_FLOW.map((line, i) => (
+                    <li key={i} className="flex gap-3 text-sm leading-relaxed text-slate-600">
+                      <span className="font-mono text-xs text-brand-500">{String(i + 1).padStart(2, '0')}</span>
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </Surface>
     </StorySection>
   );
 }
 
-/* ----------------------------------------------------------- correctness */
+/* ----------------------------------------------------------- reliability */
 
-export function Correctness() {
-  const [expanded, setExpanded] = useState<string | null>('idempotency');
+export function Reliability() {
+  const [expanded, setExpanded] = useState<string | null>('retry');
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setExpanded(null);
     window.addEventListener('keydown', onKey);
@@ -244,14 +322,12 @@ export function Correctness() {
   return (
     <StorySection className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
       <Surface className="bg-gradient-to-br from-slate-900 via-slate-900 to-brand-950 px-4 py-16 text-white sm:px-10">
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-300">Built for correctness</span>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">The five decisions that matter</h2>
-          <p className="mt-4 text-lg leading-relaxed text-slate-300">
-            Payments are not CRUD with a status column. These are the failure modes PayFlow is engineered around.
-          </p>
-        </div>
-
+        <SectionHeading
+          dark
+          eyebrow="Designed for payment failure cases"
+          title="Handle retries, delays, and repeated events deliberately."
+          intro="Payment integrations have to stay understandable when networks fail or messages arrive more than once. These are the controls PayFlow actually implements."
+        />
         <motion.div
           variants={container}
           initial="hidden"
@@ -259,7 +335,7 @@ export function Correctness() {
           viewport={{ once: true, amount: 0.15 }}
           className="mx-auto mt-12 max-w-3xl space-y-3"
         >
-          {DECISIONS.map((d, i) => {
+          {RELIABILITY.map((d) => {
             const open = expanded === d.id;
             return (
               <motion.div
@@ -278,7 +354,6 @@ export function Correctness() {
                   onClick={() => setExpanded((cur) => (cur === d.id ? null : d.id))}
                   className="flex w-full items-center gap-4 px-5 py-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60"
                 >
-                  <span className="font-mono text-sm text-brand-300">{String(i + 1).padStart(2, '0')}</span>
                   <span className="flex-1">
                     <span className="block font-semibold text-white">{d.title}</span>
                     <span className="mt-0.5 block text-sm text-slate-300">{d.summary}</span>
@@ -294,7 +369,7 @@ export function Correctness() {
                       transition={{ duration: 0.3, ease: EASE }}
                       className="overflow-hidden"
                     >
-                      <p className="px-5 pb-5 pl-14 text-sm leading-relaxed text-slate-300">{d.detail}</p>
+                      <p className="px-5 pb-5 text-sm leading-relaxed text-slate-300">{d.detail}</p>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -322,9 +397,9 @@ export function ArchitectureMap() {
   return (
     <StorySection id="architecture" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
       <SectionHeading
-        eyebrow="Architecture"
-        title="Seven services, one database each"
-        intro="No service ever queries another’s tables. Synchronous answers go over REST; everything else flows through Kafka. Select a service to see what it owns."
+        eyebrow="Under the hood"
+        title="Separate responsibilities. Connected payment records."
+        intro="Identity, merchant management, payment processing, provider communication, ledger recording and investigation are separate services. Each owns its own database — no service queries another’s tables. Select a service to see what it owns."
       />
       <div className="mt-12 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-5">
@@ -384,6 +459,10 @@ export function ArchitectureMap() {
               <p className="mt-2 text-sm leading-relaxed text-slate-600">{active.responsibility}</p>
             </motion.div>
           </AnimatePresence>
+          <p className="mt-6 border-t border-slate-100 pt-4 text-xs leading-relaxed text-slate-400">
+            Services talk over REST for synchronous answers and through Kafka (with a transactional outbox) for events.
+            Selecting a service shows its responsibility, not a live health check.
+          </p>
         </div>
       </div>
 
@@ -411,9 +490,9 @@ export function SecuritySection() {
   return (
     <StorySection id="security" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
       <SectionHeading
-        eyebrow="Security & reliability"
-        title="Threats, and the defence for each"
-        intro="Security is enforced in the data model and the gateway, not bolted on — a representative slice from the repository’s threat table."
+        eyebrow="Security controls"
+        title="Protect access. Verify events. Scope merchant data."
+        intro="Concrete controls implemented in PayFlow, with the risk each one addresses. No compliance or certification claims — just what the code does."
       />
       <motion.div
         variants={container}
@@ -436,24 +515,25 @@ export function SecuritySection() {
   );
 }
 
-/* --------------------------------------------------------------- audiences */
+/* --------------------------------------------------------------- who it's for */
 
-export function Audiences() {
+export function WhoFor() {
   return (
     <StorySection id="developers" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <SectionHeading eyebrow="Who it is for" title="A merchant workspace backed by developer-facing APIs." />
       <motion.div
         variants={container}
         initial="hidden"
         whileInView="show"
         viewport={{ once: true, amount: 0.2 }}
-        className="grid gap-6 md:grid-cols-2"
+        className="mt-12 grid gap-6 md:grid-cols-3"
       >
         {AUDIENCES.map((col) => (
-          <motion.div key={col.title} variants={item} className="card p-8">
+          <motion.div key={col.title} variants={item} className="card p-7">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
               <col.icon className="h-5 w-5" />
             </span>
-            <h3 className="mt-4 text-xl font-bold tracking-tight text-slate-900">{col.title}</h3>
+            <h3 className="mt-4 text-lg font-bold tracking-tight text-slate-900">{col.title}</h3>
             <ul className="mt-4 space-y-2.5">
               {col.points.map((p) => (
                 <li key={p} className="flex items-start gap-2.5 text-sm text-slate-600">
@@ -465,6 +545,52 @@ export function Audiences() {
           </motion.div>
         ))}
       </motion.div>
+      <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-slate-400">
+        PayFlow is an engineering project that runs a real payment lifecycle against a sandbox gateway (and Razorpay when
+        configured). It is not a commercial, production-certified payment service.
+      </p>
+    </StorySection>
+  );
+}
+
+/* ---------------------------------------------------------------- faq */
+
+export function FaqSection() {
+  const [open, setOpen] = useState<number | null>(0);
+  return (
+    <StorySection id="faq" className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8">
+      <SectionHeading eyebrow="FAQ" title="Questions, answered precisely." />
+      <div className="mt-12 space-y-3">
+        {FAQ.map((f, i) => {
+          const isOpen = open === i;
+          return (
+            <div key={f.q} className="card overflow-hidden p-0">
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                onClick={() => setOpen((cur) => (cur === i ? null : i))}
+                className="flex w-full items-center gap-4 px-5 py-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+              >
+                <span className="flex-1 text-sm font-semibold text-slate-900">{f.q}</span>
+                <span className="text-slate-400">{isOpen ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}</span>
+              </button>
+              <AnimatePresence initial={false}>
+                {isOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: EASE }}
+                    className="overflow-hidden"
+                  >
+                    <p className="px-5 pb-5 text-sm leading-relaxed text-slate-600">{f.a}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </div>
     </StorySection>
   );
 }
@@ -478,10 +604,11 @@ export function FinalCTA() {
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-indigo-400/20 blur-3xl" />
         <h2 className="relative mx-auto max-w-2xl text-3xl font-bold tracking-tight text-white sm:text-4xl">
-          Create a merchant account and move your first payment
+          Explore the payment lifecycle from one workspace
         </h2>
         <p className="relative mx-auto mt-4 max-w-xl text-lg text-blue-100">
-          TEST keys work immediately against the sandbox gateway — no real money, the full lifecycle.
+          Create a merchant account, use the available test environment, and follow a payment from its initial request
+          to its recorded outcome.
         </p>
         <div className="relative mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
@@ -497,6 +624,7 @@ export function FinalCTA() {
             Sign in
           </Link>
         </div>
+        <p className="relative mt-5 text-xs text-blue-200/80">Test transactions use the sandbox and do not move real money.</p>
       </div>
     </StorySection>
   );
