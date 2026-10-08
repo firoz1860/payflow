@@ -5,6 +5,7 @@ import { register } from '../services/authService';
 import { extractError } from '../api';
 import { toast } from '../components/Toast';
 import { Spinner } from '../components/Spinner';
+import { AuthShell } from '../components/AuthShell';
 import { motion } from 'framer-motion';
 
 export function RegisterPage() {
@@ -36,23 +37,7 @@ export function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-brand-900 p-4 relative overflow-hidden">
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}
-        className="absolute inset-0 overflow-hidden"
-      >
-        <motion.div
-          animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-40 -right-40 w-96 h-96 bg-brand-500/20 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{ x: [0, -30, 0], y: [0, 20, 0] }}
-          transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -bottom-40 -left-40 w-96 h-96 bg-brand-700/20 rounded-full blur-3xl"
-        />
-      </motion.div>
-
+    <AuthShell>
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -145,6 +130,6 @@ export function RegisterPage() {
           </form>
         </motion.div>
       </motion.div>
-    </div>
+    </AuthShell>
   );
 }
