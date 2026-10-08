@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Building2, Eye, EyeOff, ArrowLeft, ArrowRight } from 'lucide-react';
-import { register } from '../services/authService';
+import { Mail, Lock, User, Building2, Eye, EyeOff, ArrowLeft, ArrowRight, UserRound } from 'lucide-react';
+import { register, guestLogin } from '../services/authService';
+import { useAuthStore } from '../store/auth';
 import { extractError } from '../api';
 import { toast } from '../components/Toast';
 import { Spinner } from '../components/Spinner';
@@ -10,10 +11,27 @@ import { motion } from 'framer-motion';
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const loginStore = useAuthStore((s) => s.login);
   const [form, setForm] = useState({ fullName: '', businessName: '', email: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleGuest = async () => {
+    setError('');
+    setGuestLoading(true);
+    try {
+      const res = await guestLogin();
+      loginStore(res.accessToken, res.refreshToken, res.user);
+      toast('success', 'Signed in as a guest — explore the demo.');
+      navigate('/dashboard');
+    } catch (err) {
+      setError(extractError(err));
+    } finally {
+      setGuestLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +146,29 @@ export function RegisterPage() {
               {loading ? <Spinner size="sm" /> : <>Create account <ArrowRight className="w-4 h-4" /></>}
             </motion.button>
           </form>
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-3 text-xs uppercase tracking-wider text-slate-400">or</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGuest}
+            disabled={guestLoading || loading}
+            className="btn-secondary w-full"
+          >
+            {guestLoading ? <Spinner size="sm" /> : (
+              <>Explore as a guest <UserRound className="h-4 w-4" /></>
+            )}
+          </button>
+          <p className="mt-2 text-center text-xs text-slate-400">
+            Temporary demo merchant — no signup, no real money.
+          </p>
         </motion.div>
       </motion.div>
     </AuthShell>

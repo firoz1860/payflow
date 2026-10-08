@@ -68,6 +68,9 @@ payflow:
     admin-email: ${PAYFLOW_ADMIN_EMAIL:}
     admin-password: ${PAYFLOW_ADMIN_PASSWORD:}
     auto-verify-email: ${PAYFLOW_AUTO_VERIFY_EMAIL:true}
+    # No email/notification service is deployed, so the password-reset token is
+    # returned to the client to complete the flow. Set false once a mailer exists.
+    expose-reset-token: ${PAYFLOW_EXPOSE_RESET_TOKEN:true}
   outbox:
     enabled: true
     batch-size: 100

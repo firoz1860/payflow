@@ -82,4 +82,13 @@ public final class AuthDtos {
     }
     public record MessageResponse(String message) {
     }
+
+    /**
+     * Response for password-reset initiation. {@code resetToken} is populated only
+     * when the deployment has no email delivery (demo mode,
+     * {@code payflow.bootstrap.expose-reset-token=true}) so the UI can complete the
+     * reset; in production with a mail/notification service it stays null.
+     */
+    public record PasswordResetInitiateResponse(String message, String resetToken) {
+    }
 }

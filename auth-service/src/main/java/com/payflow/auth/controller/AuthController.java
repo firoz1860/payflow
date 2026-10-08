@@ -36,6 +36,11 @@ public class AuthController {
                                                         HttpServletRequest http) {
         return ResponseEntity.ok(authService.login(request, http.getHeader("User-Agent"), clientIp(http)));
     }
+    @PostMapping("/guest")
+    @Operation(summary = "Start an ephemeral guest merchant session to explore the demo (no registration)")
+    public ResponseEntity<AuthDtos.TokenResponse> guest(HttpServletRequest http) {
+        return ResponseEntity.ok(authService.guestLogin(http.getHeader("User-Agent"), clientIp(http)));
+    }
     @PostMapping("/refresh")
     @Operation(summary = "Rotate a refresh token for a new token pair")
     public ResponseEntity<AuthDtos.TokenResponse> refresh(@Valid @RequestBody AuthDtos.RefreshRequest request,
@@ -78,12 +83,13 @@ public class AuthController {
         return ResponseEntity.ok(new AuthDtos.MessageResponse("Email verified"));
     }
     @PostMapping("/password-reset/initiate")
-    @Operation(summary = "Always returns 202 - never reveals whether the address exists")
-    public ResponseEntity<AuthDtos.MessageResponse> initiateReset(
+    @Operation(summary = "Returns 202; includes a reset token only in demo mode (no email service configured)")
+    public ResponseEntity<AuthDtos.PasswordResetInitiateResponse> initiateReset(
             @Valid @RequestBody AuthDtos.PasswordResetInitiateRequest request) {
-        authService.initiatePasswordReset(request.email());
-        return ResponseEntity.accepted().body(new AuthDtos.MessageResponse(
-                "If an account exists for that address, a reset link has been sent"));
+        String rawToken = authService.initiatePasswordReset(request.email());
+        String exposed = authService.isResetTokenExposed() ? rawToken : null;
+        return ResponseEntity.accepted().body(new AuthDtos.PasswordResetInitiateResponse(
+                "If an account exists for that address, a password reset has been generated", exposed));
     }
     @PostMapping("/password-reset/complete")
     public ResponseEntity<AuthDtos.MessageResponse> completeReset(

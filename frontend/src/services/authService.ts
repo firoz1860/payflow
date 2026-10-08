@@ -11,6 +11,11 @@ export async function login(email: string, password: string) {
   return res.data;
 }
 
+export async function guestLogin() {
+  const res = await api.post<TokenResponse>('/auth/guest', {});
+  return res.data;
+}
+
 export async function refresh(refreshToken: string) {
   const res = await api.post<TokenResponse>('/auth/refresh', { refreshToken });
   return res.data;
@@ -35,7 +40,10 @@ export async function verifyEmail(token: string) {
 }
 
 export async function initiatePasswordReset(email: string) {
-  const res = await api.post<{ message: string }>('/auth/password-reset/initiate', { email });
+  const res = await api.post<{ message: string; resetToken?: string | null }>(
+    '/auth/password-reset/initiate',
+    { email }
+  );
   return res.data;
 }
 

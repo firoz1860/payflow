@@ -38,13 +38,15 @@ public class AuthService {
     private final OutboxRecorder outbox;
     private final MerchantRegistrationClient merchantRegistrationClient;
     private final boolean autoVerifyEmail;
+    private final boolean exposeResetToken;
     public AuthService(UserRepository userRepository, RoleRepository roleRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        OneTimeTokenRepository oneTimeTokenRepository,
                        PasswordEncoder passwordEncoder, JwtService jwtService,
                        JwtProperties jwtProperties, OutboxRecorder outbox,
                        MerchantRegistrationClient merchantRegistrationClient,
-                       @org.springframework.beans.factory.annotation.Value("${payflow.bootstrap.auto-verify-email:false}") boolean autoVerifyEmail) {
+                       @org.springframework.beans.factory.annotation.Value("${payflow.bootstrap.auto-verify-email:false}") boolean autoVerifyEmail,
+                       @org.springframework.beans.factory.annotation.Value("${payflow.bootstrap.expose-reset-token:true}") boolean exposeResetToken) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -55,6 +57,29 @@ public class AuthService {
         this.outbox = outbox;
         this.merchantRegistrationClient = merchantRegistrationClient;
         this.autoVerifyEmail = autoVerifyEmail;
+        this.exposeResetToken = exposeResetToken;
+    }
+
+    /** Whether the reset token is returned to the client (demo deployments without email delivery). */
+    public boolean isResetTokenExposed() {
+        return exposeResetToken;
+    }
+
+    /**
+     * Create an ephemeral guest merchant and immediately issue tokens for it, so a
+     * visitor can explore the dashboard without registering. Reuses the normal
+     * registration path (merchant creation + MERCHANT_OWNER role + auto-verify).
+     */
+    @Transactional
+    public AuthDtos.TokenResponse guestLogin(String userAgent, String ip) {
+        String suffix = Hashing.randomToken(6);
+        String email = "guest-" + suffix + "@payflow.demo";
+        String password = "Guest-" + Hashing.randomToken(12) + "A1a";
+        register(new AuthDtos.RegisterRequest(email, password, "Guest Merchant", "Guest Demo " + suffix));
+        User user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> PayFlowException.notFound("Guest account could not be created"));
+        recordAudit(user.getId(), "GUEST_LOGIN", user.getId().toString());
+        return issueTokens(user, UUID.randomUUID(), userAgent, ip);
     }
     @Transactional
     public AuthDtos.UserResponse register(AuthDtos.RegisterRequest request) {
@@ -161,8 +186,8 @@ public class AuthService {
         recordAudit(user.getId(), "EMAIL_VERIFIED", user.getId().toString());
     }
     @Transactional
-    public void initiatePasswordReset(String email) {
-        userRepository.findByEmailIgnoreCase(email.trim()).ifPresent(user -> {
+    public String initiatePasswordReset(String email) {
+        return userRepository.findByEmailIgnoreCase(email.trim()).map(user -> {
             String rawToken = issueOneTimeToken(user, OneTimeToken.Purpose.PASSWORD_RESET,
                     jwtProperties.getPasswordResetTtl());
             outbox.record("User", user.getId().toString(), Topics.NOTIFICATION_REQUESTED, 1,
@@ -171,7 +196,8 @@ public class AuthService {
                             "recipient", user.getEmail(),
                             "variables", Map.of("fullName", user.getFullName(), "token", rawToken)));
             recordAudit(user.getId(), "PASSWORD_RESET_REQUESTED", user.getId().toString());
-        });
+            return rawToken;
+        }).orElse(null);
     }
     @Transactional
     public void completePasswordReset(String rawToken, String newPassword) {
