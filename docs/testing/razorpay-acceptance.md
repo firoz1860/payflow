@@ -15,7 +15,7 @@ The sandbox and mocked HTTP tests are separate from real-provider acceptance. Us
 | Case | Required result |
 |---|---|
 | Successful provider-supported payment | Real order and payment IDs; backend-confirmed CAPTURED; one capture event; one balanced ledger posting |
-| Decline | Backend-confirmed failure; no capture ledger entry |
+| Declined provider attempt | Order remains retryable; no capture ledger entry until a later attempt is authoritatively captured |
 | Checkout dismissal | No fabricated failure or capture; current backend state remains authoritative; unsupported local Razorpay cancellation returns conflict |
 | Repeat verify / webhook redelivery | Same state; no duplicate capture or ledger posting |
 | Capture before delayed authorization | CAPTURED remains unchanged |
