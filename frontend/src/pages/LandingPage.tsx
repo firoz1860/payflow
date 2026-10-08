@@ -1,50 +1,20 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  ArrowRight,
-  CreditCard,
-  Scale,
-  ShieldCheck,
-  BarChart3,
-  CheckCircle2,
-} from 'lucide-react';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { LandingNavbar } from '../components/landing/LandingNavbar';
 import { LandingFooter } from '../components/landing/LandingFooter';
 import { HeroVisual } from '../components/hero/HeroVisual';
+import {
+  Audiences,
+  ArchitectureMap,
+  CoreCapabilities,
+  Correctness,
+  FinalCTA,
+  PaymentFlowSection,
+  SecuritySection,
+} from '../components/landing/StorySections';
 
-const TRUST_POINTS = [
-  'Idempotent APIs',
-  'Double-entry ledger',
-  'Verified webhooks',
-  'Razorpay & Stripe',
-];
-
-const FEATURES = [
-  {
-    icon: CreditCard,
-    title: 'Payments & checkout',
-    body: 'Accept payments and QR checkout through idempotent, retry-safe APIs — a timed-out request never double-charges a customer.',
-    id: undefined as string | undefined,
-  },
-  {
-    icon: Scale,
-    title: 'Double-entry ledger',
-    body: 'Every payment, refund, and settlement posts to a balanced ledger you can audit to the last rupee.',
-    id: undefined,
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Secure by design',
-    body: 'Signature-verified provider webhooks, refund-concurrency safety, and a transactional outbox keep your books correct.',
-    id: 'security',
-  },
-  {
-    icon: BarChart3,
-    title: 'Operations & developers',
-    body: 'Analytics, API keys, merchant onboarding, and monitoring in one dashboard — with a clean API for your team.',
-    id: 'developers',
-  },
-];
+const TRUST_POINTS = ['Idempotent APIs', 'Double-entry ledger', 'Verified webhooks', 'UPI QR checkout'];
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -80,7 +50,7 @@ export function LandingPage() {
                 className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand-700"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-                Smart payments, simplified
+                Payments infrastructure, engineered for correctness
               </motion.span>
 
               <motion.h1
@@ -104,9 +74,9 @@ export function LandingPage() {
                 animate="show"
                 className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-600 lg:mx-0"
               >
-                PayFlow unifies payments, a double-entry ledger, reconciliation, and financial
-                operations in one secure platform — built on idempotent APIs, verified webhooks,
-                and bank-grade correctness.
+                PayFlow is a microservices payment platform for merchants — idempotent payment APIs,
+                single-use UPI QR checkout, and a double-entry ledger that stays balanced. Every state
+                change is driven only by a signature-verified provider webhook.
               </motion.p>
 
               <motion.div
@@ -140,7 +110,7 @@ export function LandingPage() {
               </motion.ul>
             </div>
 
-            {/* Right: animated visual in a cinematic panel */}
+            {/* Right: animated visual in a cinematic panel (Spline, with graceful fallback) */}
             <motion.div
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -154,47 +124,14 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* FEATURE STRIP */}
-        <section id="platform" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-16 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              The hard parts of payments, handled
-            </h2>
-            <p className="mt-4 text-lg text-slate-600">
-              PayFlow is built around the failure modes that matter — idempotency, a transactional
-              outbox, double-entry accounting, and verified webhooks.
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {FEATURES.map((feature, i) => (
-              <motion.div
-                key={feature.title}
-                id={feature.id}
-                variants={fadeUp}
-                custom={i}
-                initial="hidden"
-                animate="show"
-                className="card scroll-mt-20 p-6"
-              >
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-                  <feature.icon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 text-base font-semibold text-slate-900">{feature.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">{feature.body}</p>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link to="/register" className="btn-primary px-6 py-3 text-base">
-              Create your merchant account <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link to="/login" className="btn-ghost px-6 py-3 text-base">
-              Sign in
-            </Link>
-          </div>
-        </section>
+        {/* STORY */}
+        <CoreCapabilities />
+        <PaymentFlowSection />
+        <Correctness />
+        <ArchitectureMap />
+        <SecuritySection />
+        <Audiences />
+        <FinalCTA />
       </main>
 
       <LandingFooter />
