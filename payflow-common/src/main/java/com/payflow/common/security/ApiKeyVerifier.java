@@ -5,6 +5,9 @@ import java.util.UUID;
 public interface ApiKeyVerifier {
     String REQUEST_ATTRIBUTE = "payflow.apiKeyVerification";
     Verification verify(String rawApiKey);
+    class UnavailableException extends RuntimeException {
+        public UnavailableException(Throwable cause) { super("Authentication service is temporarily unavailable", cause); }
+    }
     record Verification(
             boolean valid,
             UUID merchantId,

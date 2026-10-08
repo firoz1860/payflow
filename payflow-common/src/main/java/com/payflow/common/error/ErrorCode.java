@@ -2,6 +2,7 @@ package com.payflow.common.error;
 public enum ErrorCode {
     VALIDATION_FAILED,
     UNAUTHORIZED,
+    AUTHENTICATION_UNAVAILABLE,
     FORBIDDEN,
     NOT_FOUND,
     CONFLICT,

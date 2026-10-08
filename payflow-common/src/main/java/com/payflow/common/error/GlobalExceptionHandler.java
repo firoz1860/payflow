@@ -63,6 +63,16 @@ public class GlobalExceptionHandler {
                 ErrorCode.CONFLICT, "The resource was modified concurrently, please retry",
                 CorrelationId.get()));
     }
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiErrorResponse.of(
+                ErrorCode.FORBIDDEN, "Insufficient permissions", CorrelationId.get()));
+    }
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ApiErrorResponse> handleAuthentication(org.springframework.security.core.AuthenticationException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiErrorResponse.of(
+                ErrorCode.UNAUTHORIZED, "Authentication required", CorrelationId.get()));
+    }
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception ex) {
         log.error("Unhandled exception", ex);
