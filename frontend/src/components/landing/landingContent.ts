@@ -7,18 +7,23 @@ import {
   type LucideIcon,
   QrCode,
   Scale,
+  Search,
   Sparkles,
 } from 'lucide-react';
 
 /**
  * Landing-page content for PayFlow.
  *
- * Every line here is grounded in the repository's README and service code — the
- * service table (ports/responsibilities), the "five decisions that matter", the
- * payment-flow sequence, the transactional outbox, refund concurrency, the
- * security table, and the documented frontend scope. Nothing here claims a
- * capability the repo does not implement (e.g. merchant-managed webhook
- * endpoints, which the README marks as not-yet-built, are intentionally absent).
+ * Every claim is checked against the repository (README service table, the
+ * payment-flow sequence, the outbox, refund concurrency, the security table,
+ * the documented frontend scope). Deliberately precise:
+ *  - payment COMPLETION is confirmed by a verified provider event — but not
+ *    every state change comes from a webhook (creation/processing have other
+ *    triggers), so the copy says "provider-confirmed", not "webhook-only".
+ *  - event delivery is "at-least-once" with idempotent consumers, never
+ *    "exactly-once".
+ *  - "balanced ledger" and "investigation" are described as such, never as
+ *    bank-statement reconciliation or settlement.
  */
 
 export interface Capability {
@@ -32,111 +37,144 @@ export interface Capability {
 export const CAPABILITIES: Capability[] = [
   {
     id: 'payments',
-    title: 'Payments & checkout',
+    title: 'Payments & hosted checkout',
     icon: CreditCard,
-    summary: 'Create a payment with one idempotent API call and return a hosted checkout URL.',
+    summary: 'Create a payment request and give your customer a checkout link.',
     detail:
-      'A single POST /api/v1/payments with an Idempotency-Key creates the payment and returns a checkout URL. Retrying the same key never creates a second charge — the loser of the race reads the winner’s stored response.',
+      'Submit the amount and required details through the API with an Idempotency-Key. PayFlow creates the payment record, connects it to the configured checkout provider, and returns a checkout URL you can track from the merchant workspace.',
   },
   {
     id: 'qr',
-    title: 'QR / UPI checkout',
+    title: 'UPI QR checkout',
     icon: QrCode,
-    summary: 'Single-use, fixed-amount UPI QR codes generated server-side.',
+    summary: 'Offer a QR code tied to a specific payment request.',
     detail:
-      'PayFlow fixes the payee VPA, name and amount inside the upi:// intent, so a customer cannot alter what they pay. The payment stays PENDING until a signature-verified webhook confirms the scan was paid.',
+      'Generate a fixed-amount, single-use UPI QR through the supported provider integration — the payee and amount are set server-side. Track its status through verified provider updates rather than a customer screenshot.',
   },
   {
     id: 'ledger',
     title: 'Double-entry ledger',
     icon: Scale,
-    summary: 'Every payment, fee and refund posts to a ledger that is balanced by construction.',
+    summary: 'See the financial entries associated with payment activity.',
     detail:
-      'Debits always equal credits — enforced by the service, a Postgres CHECK(total_debit = total_credit), an immutable-entry trigger, and an integrity job that re-proves global balance every 10 minutes. There is no stored balance column; balances are derived from entries.',
+      'Supported payment events are recorded as balanced debit and credit postings. Every entry traces back to its originating transaction, which supports investigation and internal accounting checks. It is a ledger of record, not a full accounting suite.',
   },
   {
     id: 'analytics',
-    title: 'Analytics',
+    title: 'Merchant analytics',
     icon: BarChart3,
-    summary: 'Live merchant analytics computed only from real Payment API data.',
+    summary: 'Understand payment activity from actual transaction records.',
     detail:
-      'Captured volume, success rate and payment-status breakdowns are derived from what the API actually returns — the dashboard deliberately does not invent settlement or reconciliation numbers the core does not expose.',
+      'Review captured volume, success rate and status breakdowns computed from real Payment API data. Totals and charts stay consistent with the selected filters, and an empty workspace shows a clear “no activity yet” state.',
   },
   {
     id: 'api-keys',
-    title: 'API keys',
+    title: 'API key management',
     icon: KeyRound,
-    summary: 'TEST and LIVE keys, verified on every money-moving request.',
+    summary: 'Connect your application using merchant-scoped credentials.',
     detail:
-      'Secrets are BCrypt-hashed with a separate peppered SHA-256 for lookup. Publishable pk_ keys are rejected outright on money-moving endpoints, and merchant, fee and status are derived from the key — never accepted from the request body.',
+      'Authenticate payment requests with merchant-scoped TEST and LIVE keys. The environment is explicit, so developers always know whether an operation uses simulated (sandbox) or real provider processing. Publishable keys are rejected on money-moving endpoints.',
   },
   {
     id: 'copilot',
     title: 'PayFlow Copilot',
     icon: Sparkles,
-    summary: 'A read-only AI assistant that investigates payments over verified evidence.',
+    summary: 'Investigate payment activity with a read-only assistant.',
     detail:
-      'Bring-your-own-key and vendor-abstracted. The agent answers only from read-only evidence tools and labels every claim FACT, INFERENCE or MISSING — it never mutates data.',
+      'Ask questions about supported payment records and get explanations grounded in the evidence the assistant can read, with transaction references kept visible. Copilot explains records — it does not move money, approve refunds, or change payment status.',
   },
 ];
 
-export interface FlowStep {
-  label: string;
-  note: string;
+export interface ProblemSolution {
+  problem: string;
+  approach: string;
 }
 
-export const PAYMENT_FLOW: FlowStep[] = [
-  { label: 'Merchant', note: 'POST /payments with an sk_live_… key and an Idempotency-Key.' },
-  { label: 'API Gateway', note: 'Rate-limits, strips client identity headers, pre-checks the JWT.' },
-  { label: 'Payment service', note: 'Verifies the key, claims the idempotency key, runs a risk check, persists CREATED.' },
-  { label: 'Provider service', note: 'Creates the charge at the gateway — outside any database transaction.' },
-  { label: 'Razorpay / Sandbox', note: 'The real provider returns a reference and a checkout URL.' },
-  { label: 'Signed webhook', note: 'Customer pays; the provider HMAC, timestamp and event id are all verified.' },
-  { label: 'Kafka → Ledger', note: 'PENDING → CAPTURED, then balanced double-entry postings land in the ledger.' },
+export const WHY_PROBLEMS: ProblemSolution[] = [
+  {
+    problem: 'Repeated requests can create duplicate payments.',
+    approach:
+      'An idempotency key identifies a payment request, so a retry returns the existing result instead of creating another payment.',
+  },
+  {
+    problem: 'A checkout screen does not prove that money was received.',
+    approach:
+      'PayFlow verifies the provider’s notification before recording the corresponding confirmed payment outcome.',
+  },
+  {
+    problem: 'Payment statuses and financial records can drift apart.',
+    approach:
+      'Payment events feed a double-entry ledger, creating traceable debit and credit entries tied to each transaction.',
+  },
 ];
 
-export interface Decision {
+export interface HowStep {
+  title: string;
+  body: string;
+}
+
+export const HOW_STEPS: HowStep[] = [
+  { title: 'Create the request', body: 'Your application submits the payment details with its credentials and an idempotency key.' },
+  { title: 'Validate and record', body: 'PayFlow checks the request, applies supported validation and risk rules, and creates or retrieves the payment record.' },
+  { title: 'Open checkout', body: 'The provider integration returns the checkout details the customer needs to continue.' },
+  { title: 'Receive provider confirmation', body: 'After processing, the provider sends a notification. PayFlow verifies its authenticity and applies duplicate-event checks.' },
+  { title: 'Update the payment record', body: 'An accepted provider event moves the payment to its corresponding status. A delayed response or timeout is not treated as success or failure.' },
+  { title: 'Record the financial entries', body: 'Supported payment events are processed into balanced ledger postings, with references connecting the entries to the transaction. The ledger may update shortly after the payment status.' },
+  { title: 'Review and investigate', body: 'The merchant inspects status, transaction details, and financial records from the dashboard — and can ask Copilot to explain them.' },
+];
+
+/** The internal service-level sequence, shown inside a "Technical details" disclosure. */
+export const TECHNICAL_FLOW: string[] = [
+  'Gateway rate-limits the request, strips client identity headers, and pre-checks the JWT.',
+  'payment-service verifies the API key (cached briefly in Redis) and claims the idempotency key in its own transaction.',
+  'A risk check runs, then the payment is persisted as CREATED alongside an outbox event — in one transaction.',
+  'provider-service creates the charge at the gateway outside any database transaction, returning a reference and checkout URL.',
+  'A signed provider webhook is verified (HMAC over the raw body, timestamp window, unique event id) and de-duplicated.',
+  'The event flows through Kafka (at-least-once, idempotent consumers); the payment moves PENDING → CAPTURED and the ledger posts balanced entries.',
+];
+
+export interface Reliability {
   id: string;
   title: string;
   summary: string;
   detail: string;
 }
 
-export const DECISIONS: Decision[] = [
+export const RELIABILITY: Reliability[] = [
   {
-    id: 'idempotency',
-    title: 'Idempotency is a database constraint',
-    summary: 'A UNIQUE (merchant_id, idempotency_key) lets concurrent retries race to INSERT — exactly one wins.',
+    id: 'retry',
+    title: 'Retry without creating another payment',
+    summary: 'The same idempotency key returns the existing payment instead of a new one.',
     detail:
-      'The claim commits in its own REQUIRES_NEW transaction before any business work starts, so a later rollback cannot erase it and let a retry create a second payment. Reusing a key with a different body returns 409 IDEMPOTENCY_KEY_REUSED instead of replaying the wrong object.',
+      'A UNIQUE (merchant_id, idempotency_key) constraint means concurrent retries race to INSERT and exactly one wins; the others read the stored result. Reusing a key with a different request body is rejected with 409 rather than replaying the wrong object.',
   },
   {
-    id: 'no-remote-in-tx',
-    title: 'Remote calls never run inside a transaction',
-    summary: 'Provider calls happen between transactions, never while a database connection is held open.',
-    detail:
-      'Holding a connection across a third-party network round trip exhausts the pool under provider latency and takes down every unrelated payment. A leak-detection threshold fires if the mistake is ever reintroduced.',
-  },
-  {
-    id: 'timeout',
-    title: 'A provider timeout is not a decline',
+    id: 'delays',
+    title: 'Handle provider delays explicitly',
     summary: 'A timeout records a failed attempt but leaves the payment non-terminal.',
     detail:
-      'The provider may have created the charge before the socket gave up. Marking the payment FAILED would tell the merchant “no money moved” while the customer’s card was charged. There is deliberately no auto-retry — the retry decision belongs to the merchant who holds the key. Reconciliation resolves the true state.',
+      'The charge may have been created before the socket gave up, so a timeout is never shown as a confirmed decline, and the UI does not tell you to immediately create a second payment. The true outcome is resolved once the provider confirms.',
   },
   {
-    id: 'ledger-balance',
-    title: 'The ledger cannot be unbalanced',
-    summary: 'Debits always equal credits — even against direct SQL.',
+    id: 'dedup',
+    title: 'Process repeated events safely',
+    summary: 'Duplicate provider events are recognised and ignored.',
     detail:
-      'Enforcement is layered: the service rejects unbalanced postings, a Postgres CHECK enforces equal debits and credits, a trigger makes entries immutable (corrections are reversing postings), and an integrity job re-proves global balance every 10 minutes.',
+      'Provider events are de-duplicated by a unique (provider, event id), and every Kafka consumer is idempotent because delivery is at-least-once by design — a redelivered event must not post twice. This is at-least-once with idempotent handling, not exactly-once delivery.',
   },
   {
-    id: 'trust',
-    title: 'Nothing trusts the client',
-    summary: 'Only a signature-verified provider webhook can change payment state.',
+    id: 'ledger',
+    title: 'Keep ledger postings balanced',
+    summary: 'Debits always equal credits — enforced in the database, not just the app.',
     detail:
-      'The HMAC is computed over the raw body, stale timestamps are rejected to stop replay, and merchantId, fees and status are derived from the authenticated key. Cross-tenant reads return 404, not 403 — confirming an id exists but belongs to someone else is itself a leak.',
+      'The service rejects unbalanced postings, a Postgres CHECK enforces equal total debits and credits, entries are immutable (corrections are reversing postings), and an integrity job re-proves global balance on a schedule.',
+  },
+  {
+    id: 'verify',
+    title: 'Verify payment updates at the server',
+    summary: 'A browser redirect is never accepted as proof of payment.',
+    detail:
+      'Provider notifications are verified by HMAC over the raw request body, with a timestamp window and a unique event id to stop replay. A client-side “success” screen does not change a payment’s recorded outcome on its own.',
   },
 ];
 
@@ -150,19 +188,19 @@ export interface Service {
 }
 
 export const SERVICES: Service[] = [
-  { name: 'api-gateway', port: '8080', group: 'Edge', responsibility: 'Routing, Redis rate limiting, JWT pre-check, security headers, circuit breakers.' },
-  { name: 'auth-service', port: '8081', group: 'Identity', responsibility: 'Users, JWT, rotating refresh tokens with reuse detection, permission-based RBAC.' },
-  { name: 'merchant-service', port: '8082', group: 'Identity', responsibility: 'Merchant lifecycle, TEST/LIVE API keys, and key verification for other services.' },
-  { name: 'payment-service', port: '8085', group: 'Money', responsibility: 'Payment lifecycle, attempts, idempotency, the risk gate, and the outbox.' },
-  { name: 'provider-service', port: '8086', group: 'Money', responsibility: 'Gateway adapters (sandbox + Razorpay), webhook verification and dedup.' },
-  { name: 'ledger-service', port: '8088', group: 'Money', responsibility: 'Double-entry accounts, postings, entries, reversals, and the integrity job.' },
-  { name: 'ai-agent-service', port: '8096', group: 'Intelligence', responsibility: 'PayFlow Copilot — BYOK, read-only evidence tools, FACT / INFERENCE / MISSING.' },
+  { name: 'api-gateway', port: '8080', group: 'Edge', responsibility: 'Routes incoming requests and applies the configured entry-point controls — rate limiting, JWT pre-check and security headers.' },
+  { name: 'auth-service', port: '8081', group: 'Identity', responsibility: 'Manages authentication, sessions and supported token workflows, including refresh-token rotation.' },
+  { name: 'merchant-service', port: '8082', group: 'Identity', responsibility: 'Manages merchant identity, ownership and configuration, and verifies TEST/LIVE API keys for other services.' },
+  { name: 'payment-service', port: '8085', group: 'Money', responsibility: 'Owns payment records, lifecycle transitions, request idempotency and the supported processing rules.' },
+  { name: 'provider-service', port: '8086', group: 'Money', responsibility: 'Communicates with configured providers (sandbox + Razorpay) and verifies provider webhooks.' },
+  { name: 'ledger-service', port: '8088', group: 'Money', responsibility: 'Records and exposes supported financial accounts, postings and entries.' },
+  { name: 'ai-agent-service', port: '8096', group: 'Intelligence', responsibility: 'Provides read-only investigation over the evidence made available to it.' },
 ];
 
 export const SERVICE_GROUPS: { group: ServiceGroup; blurb: string }[] = [
   { group: 'Edge', blurb: 'The single public entry point.' },
   { group: 'Identity', blurb: 'Who is calling, and may they.' },
-  { group: 'Money', blurb: 'The payment lifecycle and its books.' },
+  { group: 'Money', blurb: 'Payment records, providers and the ledger.' },
   { group: 'Intelligence', blurb: 'Read-only investigation.' },
 ];
 
@@ -172,12 +210,12 @@ export interface Threat {
 }
 
 export const SECURITY: Threat[] = [
-  { threat: 'Stolen database', defence: 'API-key secrets are BCrypt-hashed; refresh tokens are stored as SHA-256 only.' },
-  { threat: 'Refresh-token theft', defence: 'Rotation with reuse detection — a replayed token revokes the whole family.' },
-  { threat: 'Cross-tenant / IDOR', defence: 'TenantGuard, tenant-scoped queries, and 404-not-403 responses.' },
-  { threat: 'Webhook forgery', defence: 'HMAC over the raw request body with constant-time comparison.' },
-  { threat: 'Webhook replay', defence: 'Timestamp window plus a unique (provider, event id).' },
-  { threat: 'Card data', defence: 'Never stored — provider tokens and last-4 only, enforced by a CHECK constraint.' },
+  { threat: 'Cross-tenant access', defence: 'Payment and ledger records are merchant-scoped; a request for someone else’s id returns 404, not 403.' },
+  { threat: 'Credential exposure', defence: 'API-key secrets are hashed, not stored in the clear, and verified on every money-moving request.' },
+  { threat: 'Session & refresh tokens', defence: 'Refresh tokens are rotated with reuse detection — a replayed token revokes the whole family.' },
+  { threat: 'Webhook forgery', defence: 'Provider notifications are verified by signature over the raw request body before anything is recorded.' },
+  { threat: 'Duplicate & replayed events', defence: 'A timestamp window plus a unique event id stop replays; consumers are idempotent.' },
+  { threat: 'Sensitive payment data', defence: 'Card numbers are never stored — provider tokens and last-4 only; input is validated and rate-limited at the edge.' },
 ];
 
 export interface AudienceColumn {
@@ -191,27 +229,77 @@ export const AUDIENCES: AudienceColumn[] = [
     icon: LayoutDashboard,
     title: 'For merchants',
     points: [
-      'Create payments and single-use UPI QR codes',
-      'Track payment lists, details and live status',
-      'Analytics from real payment data',
-      'Read-only ledger accounts, postings and entries',
+      'Create supported payment requests and UPI QR',
+      'Share checkout details with customers',
+      'Review payment activity and analytics',
+      'Inspect the associated ledger records',
     ],
   },
   {
     icon: BookOpen,
     title: 'For developers',
     points: [
-      'Idempotent REST API with TEST / LIVE keys',
-      'Signature-verified provider webhooks',
-      'Correlation IDs across gateway → service → Kafka',
-      'One database per service, Flyway-validated schemas',
+      'Integrate retry-safe payment creation',
+      'Work with explicit TEST / LIVE credentials',
+      'Handle verified provider events',
+      'Trace processing across APIs and events',
+    ],
+  },
+  {
+    icon: Search,
+    title: 'For operations',
+    points: [
+      'Investigate pending or failed activity',
+      'Follow transaction references and statuses',
+      'Use evidence available in the system',
+      'Ask Copilot to explain a record',
     ],
   },
 ];
 
+export interface Faq {
+  q: string;
+  a: string;
+}
+
+export const FAQ: Faq[] = [
+  {
+    q: 'What does PayFlow do?',
+    a: 'It orchestrates payments for merchants — creating payment requests, offering hosted or UPI QR checkout, tracking each transaction, and recording the financial entries in a double-entry ledger.',
+  },
+  {
+    q: 'Does PayFlow replace a payment provider?',
+    a: 'No. PayFlow integrates with configured providers (a sandbox gateway and Razorpay). It coordinates and records payments; it does not operate banking rails itself.',
+  },
+  {
+    q: 'What happens if the same payment request is retried?',
+    a: 'A request carries an idempotency key. A retry with the same key returns the existing payment instead of creating a second one; reusing a key with a different body is rejected rather than silently replaying.',
+  },
+  {
+    q: 'How is payment completion confirmed?',
+    a: 'After the provider processes the payment it sends a notification, which PayFlow verifies before recording the confirmed outcome. The dashboard then shows the resulting status.',
+  },
+  {
+    q: 'Can I test without moving real money?',
+    a: 'Yes. TEST keys route to the sandbox gateway, which simulates the full payment lifecycle without real funds. The environment (test vs live) is always explicit.',
+  },
+  {
+    q: 'Does a balanced ledger mean funds have settled in my bank?',
+    a: 'No. The ledger is PayFlow’s internal record of debits and credits. Bank settlement is a separate concern and is not represented as settled funds here.',
+  },
+  {
+    q: 'Can Copilot change a payment?',
+    a: 'No. Copilot is read-only. It explains records from the evidence it can read; it cannot move money, approve refunds, or change a payment’s status.',
+  },
+  {
+    q: 'What is needed for live processing?',
+    a: 'Live processing needs real provider credentials configured for the Razorpay integration. The hosted demo runs against the sandbox; without live credentials, real charges are unavailable.',
+  },
+];
+
 export const RELIABILITY_STATS: { value: string; label: string }[] = [
-  { value: '7', label: 'Spring Boot services' },
-  { value: 'at-least-once', label: 'outbox delivery, idempotent consumers' },
-  { value: '10 min', label: 'ledger integrity re-proof' },
+  { value: '7', label: 'focused services' },
+  { value: 'at-least-once', label: 'event delivery, idempotent consumers' },
   { value: '1 DB', label: 'per service, no shared tables' },
+  { value: 'read-only', label: 'Copilot investigation' },
 ];
