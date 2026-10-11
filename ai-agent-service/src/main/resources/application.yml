@@ -5,6 +5,11 @@ server:
     include-stacktrace: never
     include-message: never
 spring:
+  http:
+    converters:
+      preferred-json-mapper: jackson2
+    codecs:
+      preferred-json-mapper: jackson2
   application:
     name: ai-agent-service
   lifecycle:
@@ -27,7 +32,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-  jackson:
+  jackson2:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false

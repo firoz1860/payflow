@@ -14,7 +14,7 @@ class MerchantApiKeyFallbackTest {
         var proxyFactory=new ProxyFactory(target);proxyFactory.setProxyTargetClass(true);
         var proxy=(MerchantApiKeyVerifier)proxyFactory.getProxy();
         var fallback=FallbackMethod.create("verifyFallback",MerchantApiKeyVerifier.class.getMethod("verify",String.class),
-                new Object[]{"sk_test_example"},MerchantApiKeyVerifier.class,proxy);
+                new Object[]{"sk_test_example"},target,proxy);
         assertThrows(ApiKeyVerifier.UnavailableException.class,()->fallback.fallback(new IllegalStateException("dependency unavailable")));
     }
 }

@@ -4,8 +4,8 @@ spring:
       auto-startup: false
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.RedisAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.RedisRepositoriesAutoConfiguration
 payflow:
   jwt:
     secret: test-secret-that-is-at-least-sixty-four-bytes-long-for-hs512-signing-ok

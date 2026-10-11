@@ -42,7 +42,10 @@ final class LlmHttp {
         try {
             RestClient.RequestBodySpec spec = client.post().uri(uri);
             headers.accept(spec);
-            return spec.body(body).retrieve().toEntity(JsonNode.class).getBody();
+            String response = spec.body(body).retrieve().toEntity(String.class).getBody();
+            return response == null ? null : new com.fasterxml.jackson.databind.ObjectMapper().readTree(response);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new LlmProviderException(provider + " provider returned invalid JSON", 0, provider);
         } catch (RestClientResponseException ex) {
             throw new LlmProviderException(
                     provider + " provider returned an error response", ex.getStatusCode().value(), provider);

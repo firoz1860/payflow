@@ -9,6 +9,11 @@ server:
     include-stacktrace: never
     include-message: never
 spring:
+  http:
+    converters:
+      preferred-json-mapper: jackson2
+    codecs:
+      preferred-json-mapper: jackson2
   application:
     name: payment-service
   lifecycle:
@@ -62,7 +67,7 @@ spring:
     listener:
       ack-mode: record
       missing-topics-fatal: false
-  jackson:
+  jackson2:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false

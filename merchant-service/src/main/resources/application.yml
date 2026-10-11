@@ -5,6 +5,11 @@ server:
     include-stacktrace: never
     include-message: never
 spring:
+  http:
+    converters:
+      preferred-json-mapper: jackson2
+    codecs:
+      preferred-json-mapper: jackson2
   application:
     name: merchant-service
   datasource:
@@ -44,7 +49,7 @@ spring:
         enable.idempotence: true
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
-  jackson:
+  jackson2:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
