@@ -38,15 +38,13 @@ public class AuthService {
     private final OutboxRecorder outbox;
     private final MerchantRegistrationClient merchantRegistrationClient;
     private final boolean autoVerifyEmail;
-    private final boolean exposeResetToken;
     public AuthService(UserRepository userRepository, RoleRepository roleRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        OneTimeTokenRepository oneTimeTokenRepository,
                        PasswordEncoder passwordEncoder, JwtService jwtService,
                        JwtProperties jwtProperties, OutboxRecorder outbox,
                        MerchantRegistrationClient merchantRegistrationClient,
-                       @org.springframework.beans.factory.annotation.Value("${payflow.bootstrap.auto-verify-email:false}") boolean autoVerifyEmail,
-                       @org.springframework.beans.factory.annotation.Value("${payflow.bootstrap.expose-reset-token:true}") boolean exposeResetToken) {
+                       @org.springframework.beans.factory.annotation.Value("${payflow.bootstrap.auto-verify-email:false}") boolean autoVerifyEmail) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -57,12 +55,6 @@ public class AuthService {
         this.outbox = outbox;
         this.merchantRegistrationClient = merchantRegistrationClient;
         this.autoVerifyEmail = autoVerifyEmail;
-        this.exposeResetToken = exposeResetToken;
-    }
-
-    /** Whether the reset token is returned to the client (demo deployments without email delivery). */
-    public boolean isResetTokenExposed() {
-        return exposeResetToken;
     }
 
     /**

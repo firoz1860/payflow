@@ -10,7 +10,6 @@ export function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-  const [resetToken, setResetToken] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,8 +17,7 @@ export function ForgotPasswordPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await initiatePasswordReset(email);
-      setResetToken(res.resetToken ?? null);
+      await initiatePasswordReset(email);
       setSent(true);
     } catch (err) {
       setError(extractError(err));
@@ -84,33 +82,12 @@ export function ForgotPasswordPage() {
               >
                 <CheckCircle2 className="w-7 h-7 text-emerald-600" />
               </motion.div>
-              {resetToken ? (
-                <>
-                  <h3 className="text-lg font-semibold text-slate-900">Reset link ready</h3>
-                  <p className="mt-2 text-sm text-slate-500">
-                    This demo has no email service, so your reset link is shown here for{' '}
-                    <span className="font-medium text-slate-700">{email}</span>.
-                  </p>
-                  <Link to={`/reset-password/${resetToken}`} className="btn-primary mt-6 w-full">
-                    Set a new password
-                  </Link>
-                  <Link
-                    to="/login"
-                    className="mt-3 inline-block text-sm font-medium text-slate-500 hover:text-brand-600"
-                  >
-                    Back to sign in
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-lg font-semibold text-slate-900">Check your inbox</h3>
-                  <p className="mt-2 text-sm text-slate-500">
-                    If an account exists for <span className="font-medium text-slate-700">{email}</span>,
-                    a reset link has been sent.
-                  </p>
-                  <Link to="/login" className="btn-primary mt-6 w-full">Back to sign in</Link>
-                </>
-              )}
+              <h3 className="text-lg font-semibold text-slate-900">Reset requested</h3>
+              <p className="mt-2 text-sm text-slate-500">
+                If an account exists for this address, a reset has been requested.
+                Reset links require email delivery, which may be unavailable on this deployment.
+              </p>
+              <Link to="/login" className="btn-primary mt-6 w-full">Back to sign in</Link>
             </motion.div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">

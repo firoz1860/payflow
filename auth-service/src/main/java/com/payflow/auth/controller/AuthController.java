@@ -83,13 +83,12 @@ public class AuthController {
         return ResponseEntity.ok(new AuthDtos.MessageResponse("Email verified"));
     }
     @PostMapping("/password-reset/initiate")
-    @Operation(summary = "Returns 202; includes a reset token only in demo mode (no email service configured)")
+    @Operation(summary = "Request a password reset; response never reveals account existence or reset credentials")
     public ResponseEntity<AuthDtos.PasswordResetInitiateResponse> initiateReset(
             @Valid @RequestBody AuthDtos.PasswordResetInitiateRequest request) {
-        String rawToken = authService.initiatePasswordReset(request.email());
-        String exposed = authService.isResetTokenExposed() ? rawToken : null;
+        authService.initiatePasswordReset(request.email());
         return ResponseEntity.accepted().body(new AuthDtos.PasswordResetInitiateResponse(
-                "If an account exists for that address, a password reset has been generated", exposed));
+                "If an account exists for that address, a password reset has been requested"));
     }
     @PostMapping("/password-reset/complete")
     public ResponseEntity<AuthDtos.MessageResponse> completeReset(
