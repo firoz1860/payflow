@@ -18,6 +18,22 @@ import static org.junit.jupiter.api.Assertions.*;
 })
 class GatewayRuntimeTest {
     @Autowired Environment environment;
+    @Autowired com.payflow.gateway.filter.JwtPreCheckFilter jwtFilter;
+
+    @Test
+    void guestAndPublicContentBypassJwtButAdminAndPaymentsRemainProtected() {
+        for (String path : new String[]{"/api/v1/auth/guest", "/api/v1/auth/site-content/hero",
+                "/api/v1/auth/admin/site-content/hero", "/api/v1/payments"}) {
+            var exchange = org.springframework.mock.web.server.MockServerWebExchange.from(
+                    org.springframework.mock.http.server.reactive.MockServerHttpRequest.get(path));
+            var forwarded = new java.util.concurrent.atomic.AtomicBoolean();
+            jwtFilter.filter(exchange, e -> { forwarded.set(true); return reactor.core.publisher.Mono.empty(); }).block();
+            boolean isPublic = path.equals("/api/v1/auth/guest") || path.equals("/api/v1/auth/site-content/hero");
+            assertEquals(isPublic, forwarded.get(), path);
+            if (!isPublic) assertEquals(org.springframework.http.HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        }
+    }
+
 
     @Test
     void startsAndServesLivenessWithItsActualDependencyGraph() throws Exception {

@@ -37,6 +37,8 @@ public class SecurityConfig {
                     .contentTypeOptions(c -> {})
                     .httpStrictTransportSecurity(h -> h.includeSubDomains(true).maxAgeInSeconds(31536000)))
             .authorizeHttpRequests(auth -> auth
+                    .requestMatchers(org.springframework.http.HttpMethod.GET,
+                            "/api/v1/auth/site-content/hero").permitAll()
                     .requestMatchers(
                             "/api/v1/auth/register",
                             "/api/v1/auth/login",
