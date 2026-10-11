@@ -21,4 +21,4 @@ Spring Boot remains3.3.5. The optional OWASP job allows failure, so green workfl
 
 ## Validation
 
-Password-reset HTTP regression: RED with real token in public JSON; GREEN after removal. Common/auth unit suite passes. Frontend21 tests and TypeScript/Vite build pass. Full reactor tests and CI acceptance tracked in the follow-up PR; do not treat pending tests as passed.
+Password-reset HTTP regression: RED with real token in public JSON; GREEN after removal. Common/auth unit suite passes. Frontend21 tests and TypeScript/Vite build pass. Full nine-module Maven reactor unit suite passes (45.860 seconds). Actual PostgreSQL CI acceptance remains pending in PR24. Independent review found no Critical/Important regressions; trailing-zero collision normalization and stale config comments were corrected.
