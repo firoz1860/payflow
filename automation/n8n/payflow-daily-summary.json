@@ -1,0 +1,124 @@
+{
+  "name": "payflow-daily-summary",
+  "active": false,
+  "nodes": [
+    {
+      "id": "schedule",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "read-gateway-health",
+      "name": "Read Gateway Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "url": "={{ ($vars.PAYFLOW_BASE_URL || 'https://payflow.unconfigured.invalid').replace(/\\/$/, '') + '/actuator/health' }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "classify-gateway-health",
+      "name": "Classify Gateway Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Public gateway health only. This is not a payment/ledger readiness assertion.\nfunction classifyHealth(response, checkedAt) {\n  const httpCode = Number.isInteger(response.statusCode) ? response.statusCode : null;\n  const bodyStatus = typeof response.body?.status === 'string' ? response.body.status : null;\n  const healthy = httpCode !== null && httpCode >= 200 && httpCode < 300 && bodyStatus === 'UP';\n  return {\n    healthy,\n    status: healthy ? 'healthy' : httpCode === null ? 'unavailable' : 'unhealthy',\n    httpCode,\n    detail: httpCode === null ? 'Gateway health request failed or timed out'\n      : `HTTP ${httpCode}; health status ${bodyStatus || 'missing/invalid'}`,\n    checkedAt,\n    scope: 'public gateway health; other services and payment processing are not verified',\n  };\n}\n\n// State is committed only by the downstream node after SMTP succeeds.\nfunction notificationForHealth(result, state) {\n  if (result.healthy && !state.activeAlert) return null;\n  if (!result.healthy && state.activeAlert) return null;\n  return result;\n}\n\n\nconst result = classifyHealth($input.first().json, new Date().toISOString());\nreturn [{ json: result }];\n"
+      }
+    },
+    {
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "operation": "send",
+        "fromEmail": "={{ $vars.PAYFLOW_EMAIL_FROM }}",
+        "toEmail": "={{ $vars.PAYFLOW_ALERT_EMAIL }}",
+        "subject": "PayFlow daily gateway health summary",
+        "emailFormat": "text",
+        "text": "={{ $json.detail + \"\\nChecked: \" + $json.checkedAt + \"\\nScope: \" + $json.scope }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Read Gateway Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Gateway Health": {
+      "main": [
+        [
+          {
+            "node": "Classify Gateway Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Gateway Health": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC"
+  },
+  "pinData": {}
+}

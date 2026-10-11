@@ -1,0 +1,56 @@
+{
+  "name": "payflow-email-smoke-test",
+  "active": false,
+  "nodes": [
+    {
+      "id": "manual-test",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "operation": "send",
+        "fromEmail": "={{ $vars.PAYFLOW_EMAIL_FROM }}",
+        "toEmail": "={{ $vars.PAYFLOW_ALERT_EMAIL }}",
+        "subject": "PayFlow email connection test",
+        "emailFormat": "text",
+        "text": "PayFlow operations email connection test. This is a test, not an incident alert.",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Test": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC"
+  },
+  "pinData": {}
+}
