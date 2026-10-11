@@ -5,6 +5,11 @@ server:
     include-stacktrace: never
     include-message: never
 spring:
+  http:
+    converters:
+      preferred-json-mapper: jackson2
+    codecs:
+      preferred-json-mapper: jackson2
   application:
     name: ai-agent-service
   lifecycle:
