@@ -27,7 +27,7 @@ export const DEFAULT_HERO_CONTENT: HeroContent = {
 
 export async function getPublicHeroContent(signal?: AbortSignal): Promise<HeroContent> {
   const response = await axios.get<HeroContent>(`${API_BASE_URL}/auth/site-content/hero`, {
-    signal, timeout: 10000,
+    signal, timeout: 45000,
   });
   const data = response.data;
   if (!data || !Array.isArray(data.trustPoints) || data.trustPoints.length < 1 || data.trustPoints.length > 4

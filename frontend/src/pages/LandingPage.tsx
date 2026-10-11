@@ -85,7 +85,7 @@ export function LandingPage() {
                     custom={1}
                     initial="hidden"
                     animate="show"
-                    className="mt-5 text-balance text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl"
+                    className="mt-5 break-words text-balance text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl"
                   >
                     {content.title}{' '}
                     <span className="bg-gradient-to-r from-brand-600 to-indigo-500 bg-clip-text text-transparent">

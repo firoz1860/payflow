@@ -66,7 +66,7 @@ displayed 3 trial days remaining on 11 October 2026.
 - Copilot needs a deployment and secure shared-secret/database wiring.
 - Signed automation endpoints and notification delivery remain unfinished.
 - Email verification/reset delivery is unfinished; never expose reset tokens.
-- Dependency scanning reports high-severity matches despite optional CI status.
+- Dependency and secret scanning are mandatory and passed on releases #28 and #29; continue enforcing them on future changes.
 - Free Render cold starts and downstream timeout failures remain observable.
 - Sandbox payment success does not establish live provider readiness.
 
