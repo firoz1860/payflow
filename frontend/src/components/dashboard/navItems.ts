@@ -90,6 +90,7 @@ export const NAV: NavNode[] = [
       { to: '/monitoring', label: 'Monitoring', icon: Activity, perm: 'platform:admin', hint: 'Platform health & events' },
       { to: '/admin/merchants', label: 'Merchants', icon: ShieldCheck, perm: 'platform:admin', hint: 'All merchant accounts' },
       { to: '/admin/roles', label: 'User roles', icon: Users, perm: 'platform:admin', hint: 'Roles & permissions' },
+      { to: '/admin/content', label: 'Website content', icon: Settings, perm: 'platform:admin', hint: 'Edit landing page hero' },
     ],
   },
 ];

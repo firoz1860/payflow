@@ -72,3 +72,25 @@ displayed 3 trial days remaining on 11 October 2026.
 
 Do not call the project production-ready until these gates are resolved and
 the affected user flows pass live tests.
+
+## Editing the landing hero
+
+Sign in as a platform administrator (`platform:admin`), then open
+**Admin → Website content** at `/admin/content`. Edit the headline, highlighted
+headline, badge, descriptions, button labels, and trust points. **Save and
+publish** commits the text to the authentication database; visitors load it on
+opening `/`, and authenticated users can preview it at `/website`. Text is
+rendered without HTML. Button destinations remain registration and the payment
+explanation section.
+
+Migration `auth/V7__site_hero_content.sql` seeds the existing copy. A content
+service outage leaves the existing default hero visible. Concurrent editors
+receive a conflict and must explicitly reload before overwriting another save.
+Merchant accounts and guest accounts cannot change global website content.
+
+A platform admin must already exist. For an installation without one,
+`PAYFLOW_ADMIN_EMAIL` and `PAYFLOW_ADMIN_PASSWORD` (at least 12 characters) can
+bootstrap a new admin through Render's secure environment settings and an auth
+redeployment. Existing accounts are deliberately left untouched; entering an
+existing merchant email does not promote it. Never commit or share the password
+in chat. The admin password should be changed after initial sign-in.
