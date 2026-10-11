@@ -78,7 +78,8 @@ public class RazorpayCheckoutService {
     }
     private JsonNode get(String path) {
         try {
-            JsonNode result = client.get().uri(path).retrieve().bodyToMono(JsonNode.class).block(Duration.ofSeconds(12));
+            String body = client.get().uri(path).retrieve().bodyToMono(String.class).block(Duration.ofSeconds(12));
+            JsonNode result = body == null ? null : new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
             if (result == null) throw unavailable();
             return result;
         } catch (Exception ex) { throw unavailable(); }

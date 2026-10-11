@@ -27,7 +27,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-  jackson:
+  jackson2:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
