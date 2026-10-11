@@ -56,7 +56,7 @@ jobs:
           cache: maven
       - name: OWASP dependency check
         run: >
-          mvn $MAVEN_ARGS org.owasp:dependency-check-maven:13.0.0:check
+          mvn $MAVEN_ARGS install -DskipTests org.owasp:dependency-check-maven:13.0.0:check
           -DfailBuildOnCVSS=7
           -DskipProvidedScope=true
           -Dformats=HTML,JSON
