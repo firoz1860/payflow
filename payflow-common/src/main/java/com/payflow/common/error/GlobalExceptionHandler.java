@@ -73,6 +73,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiErrorResponse.of(
                 ErrorCode.UNAUTHORIZED, "Authentication required", CorrelationId.get()));
     }
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodNotAllowed(
+            org.springframework.web.HttpRequestMethodNotSupportedException ex) {
+        var response = ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED);
+        var supported = ex.getSupportedHttpMethods();
+        if (supported != null) response.allow(supported.toArray(org.springframework.http.HttpMethod[]::new));
+        return response.body(ApiErrorResponse.of(ErrorCode.METHOD_NOT_ALLOWED,
+                "Request method is not supported for this endpoint", CorrelationId.get()));
+    }
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception ex) {
         log.error("Unhandled exception", ex);
