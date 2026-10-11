@@ -58,16 +58,16 @@ public class AuthService {
     }
 
     /**
-     * Create an ephemeral guest merchant and immediately issue tokens for it, so a
-     * visitor can explore the dashboard without registering. Reuses the normal
-     * registration path (merchant creation + MERCHANT_OWNER role + auto-verify).
+     * Create an isolated guest merchant and issue tokens for the demo. Guest
+     * addresses are generated internally and must not receive verification mail.
+     * Ordinary registration continues to follow the configured email policy.
      */
     @Transactional
     public AuthDtos.TokenResponse guestLogin(String userAgent, String ip) {
         String suffix = Hashing.randomToken(6);
         String email = "guest-" + suffix + "@payflow.demo";
         String password = "Guest-" + Hashing.randomToken(12) + "A1a";
-        register(new AuthDtos.RegisterRequest(email, password, "Guest Merchant", "Guest Demo " + suffix));
+        register(new AuthDtos.RegisterRequest(email, password, "Guest Merchant", "Guest Demo " + suffix), true);
         User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> PayFlowException.notFound("Guest account could not be created"));
         recordAudit(user.getId(), "GUEST_LOGIN", user.getId().toString());
@@ -75,6 +75,9 @@ public class AuthService {
     }
     @Transactional
     public AuthDtos.UserResponse register(AuthDtos.RegisterRequest request) {
+        return register(request, autoVerifyEmail);
+    }
+    private AuthDtos.UserResponse register(AuthDtos.RegisterRequest request, boolean verifyEmail) {
         String email = request.email().toLowerCase().trim();
         if (userRepository.existsByEmailIgnoreCase(email)) {
             throw PayFlowException.conflict(ErrorCode.CONFLICT, "Unable to register with the details provided");
@@ -86,11 +89,11 @@ public class AuthService {
         User user = new User(email, passwordEncoder.encode(request.password()),
                 request.fullName().trim(), merchantId);
         user.addRole(loadRole(roleName));
-        if (autoVerifyEmail) {
+        if (verifyEmail) {
             user.verifyEmail();
         }
         userRepository.save(user);
-        if (!autoVerifyEmail) {
+        if (!verifyEmail) {
             String rawToken = issueOneTimeToken(user, OneTimeToken.Purpose.EMAIL_VERIFICATION,
                     jwtProperties.getEmailVerificationTtl());
             outbox.record("User", user.getId().toString(), Topics.NOTIFICATION_REQUESTED, 1,

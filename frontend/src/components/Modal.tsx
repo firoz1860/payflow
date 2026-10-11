@@ -64,7 +64,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <AnimatePresence>
-        <motion.div
+        <motion.div key="backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -72,7 +72,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
           className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
           onClick={onClose}
         />
-        <motion.div
+        <motion.div key="dialog"
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
