@@ -9,6 +9,24 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class KafkaAuditRecoveryIT {
+    @Test void recoversEventsFailedAgainByTheOldInstanceAfterVersionEight() {
+        try (var postgres = new PostgreSQLContainer<>("postgres:16-alpine")) {
+            postgres.start();
+            String baseUrl = postgres.getJdbcUrl();
+            String url = baseUrl + (baseUrl.contains("?") ? "&" : "?") + "currentSchema=auth";
+            Flyway.configure().dataSource(url, postgres.getUsername(), postgres.getPassword()).schemas("auth").target("8").load().migrate();
+            var jdbc = new JdbcTemplate(new DriverManagerDataSource(url, postgres.getUsername(), postgres.getPassword()));
+            UUID failedAgain = insert(jdbc, "audit.event", "FAILED", "Failed to construct kafka producer", "2026-10-11T16:00:00Z");
+            UUID published = insert(jdbc, "audit.event", "PUBLISHED", "Failed to construct kafka producer", "2026-10-11T16:00:00Z");
+            UUID notification = insert(jdbc, "notification.requested", "FAILED", "Failed to construct kafka producer", "2026-10-11T16:00:00Z");
+            Flyway.configure().dataSource(url, postgres.getUsername(), postgres.getPassword()).schemas("auth").load().migrate();
+            assertEquals("PENDING", status(jdbc, failedAgain));
+            assertEquals(0, jdbc.queryForObject("SELECT attempts FROM outbox_events WHERE id=?", Integer.class, failedAgain));
+            assertEquals(1L, jdbc.queryForObject("SELECT version FROM outbox_events WHERE id=?", Long.class, failedAgain));
+            assertEquals("PUBLISHED", status(jdbc, published));
+            assertEquals("FAILED", status(jdbc, notification));
+        }
+    }
     @Test void requeuesOnlyUnpublishedAuditEventsFromTheKafkaUpgradeIncident() {
         try (var postgres = new PostgreSQLContainer<>("postgres:16-alpine")) {
             postgres.start();
