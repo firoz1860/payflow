@@ -40,7 +40,7 @@ export async function verifyEmail(token: string) {
 }
 
 export async function initiatePasswordReset(email: string) {
-  const res = await api.post<{ message: string; resetToken?: string | null }>(
+  const res = await api.post<{ message: string }>(
     '/auth/password-reset/initiate',
     { email }
   );
