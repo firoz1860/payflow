@@ -12,7 +12,8 @@ class KafkaAuditRecoveryIT {
     @Test void requeuesOnlyUnpublishedAuditEventsFromTheKafkaUpgradeIncident() {
         try (var postgres = new PostgreSQLContainer<>("postgres:16-alpine")) {
             postgres.start();
-            String url = postgres.getJdbcUrl() + "?currentSchema=auth";
+            String baseUrl = postgres.getJdbcUrl();
+            String url = baseUrl + (baseUrl.contains("?") ? "&" : "?") + "currentSchema=auth";
             Flyway.configure().dataSource(url, postgres.getUsername(), postgres.getPassword()).schemas("auth").target("7").load().migrate();
             var jdbc = new JdbcTemplate(new DriverManagerDataSource(url, postgres.getUsername(), postgres.getPassword()));
             UUID affected = insert(jdbc, "audit.event", "FAILED", "Failed to construct kafka producer", "2026-10-11T16:00:00Z");
