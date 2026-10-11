@@ -48,6 +48,9 @@ spring:
       properties:
         enable.idempotence: true
         max.in.flight.requests.per.connection: 5
+        # Kafka requires delivery >= request + linger. Pin all three values.
+        request.timeout.ms: 20000
+        linger.ms: 5
         delivery.timeout.ms: 30000
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
