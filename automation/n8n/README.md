@@ -36,5 +36,5 @@ with scheduled executions. Concurrent executions can race, so this is not an
 exactly-once notification guarantee. These emails never change payment state.
 
 Regenerate with `python3 automation/n8n/generate-workflows.py` and test with
-`node --test automation/n8n/classify-health.test.cjs`. The classifier tests do
+`node --test automation/n8n/*.test.cjs`. The local tests do
 not substitute for live n8n import and SMTP delivery tests.
