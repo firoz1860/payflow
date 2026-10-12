@@ -1,18 +1,22 @@
 import api from '../api';
 import type { User, TokenResponse, RoleName } from '../types';
+import { waitForAuthReady, type AuthRequestOptions } from './authReadiness';
 
-export async function register(email: string, password: string, fullName: string, businessName: string) {
-  const res = await api.post<User>('/auth/register', { email, password, fullName, businessName });
+export async function register(email: string, password: string, fullName: string, businessName: string, options: AuthRequestOptions = {}) {
+  await waitForAuthReady(options);
+  const res = await api.post<User>('/auth/register', { email, password, fullName, businessName }, { signal: options.signal });
   return res.data;
 }
 
-export async function login(email: string, password: string) {
-  const res = await api.post<TokenResponse>('/auth/login', { email, password });
+export async function login(email: string, password: string, options: AuthRequestOptions = {}) {
+  await waitForAuthReady(options);
+  const res = await api.post<TokenResponse>('/auth/login', { email, password }, { signal: options.signal });
   return res.data;
 }
 
-export async function guestLogin() {
-  const res = await api.post<TokenResponse>('/auth/guest', {});
+export async function guestLogin(options: AuthRequestOptions = {}) {
+  await waitForAuthReady(options);
+  const res = await api.post<TokenResponse>('/auth/guest', {}, { signal: options.signal });
   return res.data;
 }
 

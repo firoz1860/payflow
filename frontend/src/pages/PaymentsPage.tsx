@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, Filter, CreditCard } from 'lucide-react';
 import { listPayments } from '../services/paymentService';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { CardSpinner, EmptyState } from '../components/Spinner';
+import { LoadErrorState } from '../components/LoadErrorState';
 import { formatCurrency, formatDateTime } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Payment, PageResponse } from '../types';
@@ -14,27 +15,34 @@ const STATUS_FILTERS = ['ALL', 'CAPTURED', 'PENDING', 'PROCESSING', 'FAILED', 'C
 export function PaymentsPage() {
   const [data, setData] = useState<PageResponse<Payment> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const loadSequence = useRef(0);
   const [page, setPage] = useState(0);
   const [status, setStatus] = useState('ALL');
   const [search, setSearch] = useState('');
   const pageSize = 20;
 
   const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await listPayments({
         status: status !== 'ALL' ? status : undefined,
         page, size: pageSize,
       });
-      setData(res);
+      if (sequence === loadSequence.current) setData(res);
     } catch {
-      setData({ data: [], page: 0, size: pageSize, totalElements: 0, totalPages: 0 });
+      if (sequence === loadSequence.current) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (sequence === loadSequence.current) setLoading(false);
     }
   }, [page, status]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void load();
+    return () => { loadSequence.current++; };
+  }, [load]);
 
   const filtered = data?.data.filter((p) =>
     !search || p.paymentReference.toLowerCase().includes(search.toLowerCase()) ||
@@ -85,6 +93,12 @@ export function PaymentsPage() {
       <div className="card overflow-hidden">
         {loading ? (
           <CardSpinner />
+        ) : loadError ? (
+          <LoadErrorState
+            title="Payments are unavailable"
+            description="Your payment history couldn't be loaded. Retry to check the latest records."
+            onRetry={() => { void load(); }}
+          />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<CreditCard className="w-6 h-6" />}

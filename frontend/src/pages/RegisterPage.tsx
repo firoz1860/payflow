@@ -7,6 +7,8 @@ import { extractError } from '../api';
 import { toast } from '../components/Toast';
 import { Spinner } from '../components/Spinner';
 import { AuthShell } from '../components/AuthShell';
+import { AuthStartupStatus } from '../components/AuthStartupStatus';
+import { useAuthRequest } from '../hooks/useAuthRequest';
 import { motion } from 'framer-motion';
 
 export function RegisterPage() {
@@ -14,22 +16,19 @@ export function RegisterPage() {
   const loginStore = useAuthStore((s) => s.login);
   const [form, setForm] = useState({ fullName: '', businessName: '', email: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [guestLoading, setGuestLoading] = useState(false);
+  const request = useAuthRequest();
   const [error, setError] = useState('');
 
   const handleGuest = async () => {
     setError('');
-    setGuestLoading(true);
     try {
-      const res = await guestLogin();
+      const res = await request.run('guest', guestLogin);
+      if (!res) return;
       loginStore(res.accessToken, res.refreshToken, res.user);
       toast('success', 'Signed in as a guest — explore the demo.');
       navigate('/dashboard');
     } catch (err) {
       setError(extractError(err));
-    } finally {
-      setGuestLoading(false);
     }
   };
 
@@ -42,15 +41,13 @@ export function RegisterPage() {
       setError('Password must contain lowercase, uppercase, and a digit'); return;
     }
 
-    setLoading(true);
     try {
-      await register(form.email, form.password, form.fullName, form.businessName);
+      const res = await request.run('account', options => register(form.email, form.password, form.fullName, form.businessName, options));
+      if (!res) return;
       toast('success', 'Account created! Please sign in.');
       navigate('/login');
     } catch (err) {
       setError(extractError(err));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -142,8 +139,8 @@ export function RegisterPage() {
               </div>
             </div>
 
-            <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.98 }} className="btn-primary w-full">
-              {loading ? <Spinner size="sm" /> : <>Create account <ArrowRight className="w-4 h-4" /></>}
+            <motion.button type="submit" disabled={request.pending} whileTap={{ scale: 0.98 }} className="btn-primary w-full">
+              {request.kind === 'account' ? <Spinner size="sm" /> : <>Create account <ArrowRight className="w-4 h-4" /></>}
             </motion.button>
           </form>
 
@@ -159,13 +156,15 @@ export function RegisterPage() {
           <button
             type="button"
             onClick={handleGuest}
-            disabled={guestLoading || loading}
+            disabled={request.pending}
             className="btn-secondary w-full"
           >
-            {guestLoading ? <Spinner size="sm" /> : (
+            {request.kind === 'guest' ? <Spinner size="sm" /> : (
               <>Explore as a guest <UserRound className="h-4 w-4" /></>
             )}
           </button>
+          <AuthStartupStatus phase={request.phase} cancel={request.cancel}
+            submitting={request.kind === 'guest' ? 'Creating your demo workspace…' : 'Creating your account…'} />
           <p className="mt-2 text-center text-xs text-slate-400">
             Temporary demo merchant — no signup, no real money.
           </p>

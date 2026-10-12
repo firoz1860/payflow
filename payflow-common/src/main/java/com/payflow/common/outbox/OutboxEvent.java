@@ -39,6 +39,8 @@ public class OutboxEvent {
     private String correlationId;
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
+    @Column(name = "next_attempt_at", nullable = false)
+    private Instant nextAttemptAt = createdAt;
     @Column(name = "published_at")
     private Instant publishedAt;
     @Version
@@ -66,6 +68,9 @@ public class OutboxEvent {
         this.lastError = error == null ? null : error.substring(0, Math.min(error.length(), 1000));
         if (this.attempts >= 10) {
             this.status = Status.FAILED;
+        } else {
+            long retryDelaySeconds = Math.min(300L, 30L << Math.min(this.attempts - 1, 4));
+            this.nextAttemptAt = Instant.now().plusSeconds(retryDelaySeconds);
         }
     }
     public UUID getId() {
@@ -97,6 +102,9 @@ public class OutboxEvent {
     }
     public Instant getCreatedAt() {
         return createdAt;
+    }
+    public Instant getNextAttemptAt() {
+        return nextAttemptAt;
     }
     public Instant getPublishedAt() {
         return publishedAt;

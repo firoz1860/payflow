@@ -25,6 +25,7 @@ import { AdminMerchantsPage } from './pages/AdminMerchantsPage';
 import { AdminMerchantDetailPage } from './pages/AdminMerchantDetailPage';
 import { AdminRolesPage } from './pages/AdminRolesPage';
 import { CopilotPage } from './pages/CopilotPage';
+import { HeroContentPage } from './pages/HeroContentPage';
 
 const protectedPage = (page: React.ReactNode, permission?: string) => (
   <ProtectedRoute permission={permission}>
@@ -69,6 +70,8 @@ export default function App() {
       <Route path="/admin/merchants" element={protectedPage(<AdminMerchantsPage />, 'platform:admin')} />
       <Route path="/admin/merchants/:id" element={protectedPage(<AdminMerchantDetailPage />, 'platform:admin')} />
       <Route path="/admin/roles" element={protectedPage(<AdminRolesPage />, 'platform:admin')} />
+      <Route path="/admin/content" element={protectedPage(<HeroContentPage />, 'platform:admin')} />
+      <Route path="/website" element={<LandingPage />} />
 
       <Route path="/" element={<RootRoute />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

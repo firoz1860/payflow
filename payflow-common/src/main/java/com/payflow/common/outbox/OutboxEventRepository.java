@@ -14,7 +14,7 @@ import java.util.UUID;
 public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
-    @Query("select o from OutboxEvent o where o.status = :status order by o.createdAt asc")
+    @Query("select o from OutboxEvent o where o.status = :status and o.nextAttemptAt <= CURRENT_TIMESTAMP order by o.createdAt asc")
     List<OutboxEvent> lockBatchByStatus(@Param("status") OutboxEvent.Status status, Pageable pageable);
     long countByStatus(OutboxEvent.Status status);
 }

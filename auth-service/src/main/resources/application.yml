@@ -5,6 +5,11 @@ server:
     include-stacktrace: never
     include-message: never
 spring:
+  http:
+    converters:
+      preferred-json-mapper: jackson2
+    codecs:
+      preferred-json-mapper: jackson2
   application:
     name: auth-service
   datasource:
@@ -43,14 +48,22 @@ spring:
       properties:
         enable.idempotence: true
         max.in.flight.requests.per.connection: 5
+        # Kafka requires delivery >= request + linger. Pin all three values.
+        request.timeout.ms: 20000
+        linger.ms: 5
         delivery.timeout.ms: 30000
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
-  jackson:
+  jackson2:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
 payflow:
+  auth-email:
+    enabled: ${PAYFLOW_AUTH_EMAIL_ENABLED:false}
+    api-key: ${RESEND_API_KEY:}
+    from: ${PAYFLOW_AUTH_EMAIL_FROM:}
+    frontend-url: ${PAYFLOW_FRONTEND_URL:}
   jwt:
     secret: ${JWT_SECRET}
     issuer: payflow-auth

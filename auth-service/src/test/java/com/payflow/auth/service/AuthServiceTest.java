@@ -58,6 +58,25 @@ class AuthServiceTest {
                 oneTimeTokenRepository, passwordEncoder, jwtService, jwtProperties, outbox,
                 merchantRegistrationClient, false);
     }
+    @Test
+    void guestCanUseTheDemoWhenOrdinaryEmailVerificationIsRequired() {
+        var saved = new java.util.concurrent.atomic.AtomicReference<User>();
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0); saved.set(user); return user;
+        });
+        when(userRepository.findByEmailIgnoreCase(any())).thenAnswer(invocation -> Optional.ofNullable(saved.get()));
+        when(merchantRegistrationClient.create(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new MerchantRegistrationClient.CreatedMerchant(UUID.randomUUID(), "demo", "Guest", "ACTIVE"));
+        Role role = mock(Role.class);
+        when(role.getName()).thenReturn(RoleName.MERCHANT_OWNER);
+        when(role.getPermissions()).thenReturn(java.util.Set.of());
+        when(roleRepository.findByName(RoleName.MERCHANT_OWNER)).thenReturn(Optional.of(role));
+        var response = authService.guestLogin("test", "127.0.0.1");
+        assertThat(saved.get().getStatus()).isEqualTo(User.Status.ACTIVE);
+        assertThat(response.user().roles()).containsExactly("MERCHANT_OWNER");
+        verify(oneTimeTokenRepository, never()).save(any());
+        verify(outbox, never()).record(any(), any(), eq(com.payflow.common.event.Topics.NOTIFICATION_REQUESTED), org.mockito.ArgumentMatchers.anyInt(), any());
+    }
     private User activeUser(String password) {
         User user = new User("owner@test.local", passwordEncoder.encode(password),
                 "Owner", UUID.randomUUID());

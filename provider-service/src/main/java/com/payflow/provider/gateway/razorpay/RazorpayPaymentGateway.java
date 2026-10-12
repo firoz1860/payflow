@@ -105,7 +105,8 @@ public class RazorpayPaymentGateway implements PaymentGateway {
                     .uri("/orders")
                     .bodyValue(body)
                     .retrieve()
-                    .bodyToMono(JsonNode.class)
+                    .bodyToMono(String.class)
+                    .map(this::readResponse)
                     .block(Duration.ofSeconds(10));
             if (response == null) {
                 throw providerError("Empty response from Razorpay", null);
@@ -155,7 +156,8 @@ public class RazorpayPaymentGateway implements PaymentGateway {
                     .uri("/payments/qr_codes")
                     .bodyValue(body)
                     .retrieve()
-                    .bodyToMono(JsonNode.class)
+                    .bodyToMono(String.class)
+                    .map(this::readResponse)
                     .block(Duration.ofSeconds(10));
             if (response == null) {
                 throw providerError("Empty QR response from Razorpay", null);
@@ -181,7 +183,8 @@ public class RazorpayPaymentGateway implements PaymentGateway {
         JsonNode response = client.get()
                 .uri("/orders/{id}", providerPaymentId)
                 .retrieve()
-                .bodyToMono(JsonNode.class)
+                .bodyToMono(String.class)
+                    .map(this::readResponse)
                 .block(Duration.ofSeconds(8));
         if (response == null) {
             throw providerError("Empty response from Razorpay", null);
@@ -201,7 +204,8 @@ public class RazorpayPaymentGateway implements PaymentGateway {
                     .uri("/payments/{id}/refund", command.providerPaymentId())
                     .bodyValue(body)
                     .retrieve()
-                    .bodyToMono(JsonNode.class)
+                    .bodyToMono(String.class)
+                    .map(this::readResponse)
                     .block(Duration.ofSeconds(10));
             if (response == null) {
                 throw providerError("Empty refund response from Razorpay", null);
@@ -309,6 +313,13 @@ public class RazorpayPaymentGateway implements PaymentGateway {
             case "wallet" -> "WALLET";
             default -> null;
         };
+    }
+    private JsonNode readResponse(String body) {
+        try {
+            return objectMapper.readTree(body);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw providerError("Invalid provider response", null);
+        }
     }
     private JsonNode readError(String body) {
         try {

@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { DEFAULT_HERO_CONTENT, getPublicHeroContent } from '../services/heroContentService';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
@@ -18,13 +19,6 @@ import {
   WhyPayFlow,
 } from '../components/landing/StorySections';
 
-const TRUST_POINTS = [
-  'Retry-safe payment APIs',
-  'Verified provider updates',
-  'Balanced ledger entries',
-  'Merchant dashboard',
-];
-
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
   show: (i: number) => ({
@@ -35,6 +29,12 @@ const fadeUp = {
 };
 
 export function LandingPage() {
+  const [content, setContent] = useState(DEFAULT_HERO_CONTENT);
+  useEffect(() => {
+    const controller = new AbortController();
+    void getPublicHeroContent(controller.signal).then(setContent).catch(() => {});
+    return () => controller.abort();
+  }, []);
   const reduce = useReducedMotion();
   const stageRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: stageRef, offset: ['start start', 'end start'] });
@@ -77,7 +77,7 @@ export function LandingPage() {
                     className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand-700"
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-                    Payment processing with a clear audit trail
+                    {content.badge}
                   </motion.span>
 
                   <motion.h1
@@ -85,11 +85,11 @@ export function LandingPage() {
                     custom={1}
                     initial="hidden"
                     animate="show"
-                    className="mt-5 text-balance text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl"
+                    className="mt-5 break-words text-balance text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl"
                   >
-                    Accept payments.{' '}
+                    {content.title}{' '}
                     <span className="bg-gradient-to-r from-brand-600 to-indigo-500 bg-clip-text text-transparent">
-                      Keep your records in balance.
+                      {content.accent}
                     </span>
                   </motion.h1>
 
@@ -100,9 +100,7 @@ export function LandingPage() {
                     animate="show"
                     className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-600 lg:mx-0"
                   >
-                    PayFlow brings payment collection, transaction tracking, and ledger records into one merchant
-                    workspace. Create payments through an API, offer hosted or UPI QR checkout, and follow each
-                    transaction from initiation to its recorded outcome.
+                    {content.description}
                   </motion.p>
 
                   <motion.p
@@ -112,8 +110,7 @@ export function LandingPage() {
                     animate="show"
                     className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-500 lg:mx-0"
                   >
-                    Built to prevent duplicate payment creation during retries, verify provider updates, and keep
-                    financial entries traceable.
+                    {content.supportingText}
                   </motion.p>
 
                   <motion.div
@@ -124,10 +121,10 @@ export function LandingPage() {
                     className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:justify-start"
                   >
                     <Link to="/register" className="btn-primary w-full px-6 py-3 text-base sm:w-auto">
-                      Create merchant account <ArrowRight className="h-4 w-4" />
+                      {content.primaryLabel} <ArrowRight className="h-4 w-4" />
                     </Link>
                     <a href="#how" className="btn-secondary w-full px-6 py-3 text-base sm:w-auto">
-                      See how payments work
+                      {content.secondaryLabel}
                     </a>
                   </motion.div>
 
@@ -138,8 +135,8 @@ export function LandingPage() {
                     animate="show"
                     className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 lg:justify-start"
                   >
-                    {TRUST_POINTS.map((point) => (
-                      <li key={point} className="flex items-center gap-1.5 text-sm text-slate-500">
+                    {content.trustPoints.map((point, index) => (
+                      <li key={index} className="flex items-center gap-1.5 text-sm text-slate-500">
                         <CheckCircle2 className="h-4 w-4 text-brand-500" />
                         {point}
                       </li>
