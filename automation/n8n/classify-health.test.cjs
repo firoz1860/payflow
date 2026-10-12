@@ -22,6 +22,16 @@ test('transport failures remain unavailable without logging raw error payloads',
   assert.equal(JSON.stringify(result).includes('sensitive connection detail'), false);
 });
 
+test('unrecognized health status cannot copy server error text into notifications', () => {
+  const result = classifyHealth({ statusCode: 503, body: { status: 'private server error detail' } }, timestamp);
+  assert.equal(result.healthy, false);
+  assert.equal(result.detail, 'HTTP 503; health status missing/invalid');
+  for (const status of ['UP', 'DOWN', 'OUT_OF_SERVICE', 'UNKNOWN']) {
+    assert.equal(classifyHealth({ statusCode: 503, body: { status } }, timestamp).detail,
+      `HTTP 503; health status ${status}`);
+  }
+});
+
 test('send once per incident and once on recovery without committing before delivery', () => {
   const healthy = classifyHealth({ statusCode: 200, body: { status: 'UP' } }, timestamp);
   const failed = classifyHealth({ error: 'timeout' }, timestamp);

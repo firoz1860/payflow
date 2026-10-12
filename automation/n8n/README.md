@@ -23,7 +23,9 @@ existing SMTP credential; passwords are never part of exports or variables.
 These workflows read only the public gateway health endpoint. They do not use
 HMAC headers, JWTs, internal tokens, payment data, or LLM credentials. HTTP 200
 without a JSON health status of UP is not healthy. Transport failures are
-reported as unavailable; raw error bodies are not copied into email.
+reported as unavailable; raw error bodies are not copied into email. Only the
+fixed health statuses `UP`, `DOWN`, `OUT_OF_SERVICE`, and `UNKNOWN` appear in
+notification detail; arbitrary status strings are reported as invalid.
 
 This does not implement signed incident ingestion, unresolved-payment review,
 or authenticated Copilot checks. Those require dedicated backend authorization

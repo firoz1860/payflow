@@ -1,7 +1,8 @@
 // Public gateway health only. This is not a payment/ledger readiness assertion.
 function classifyHealth(response, checkedAt) {
   const httpCode = Number.isInteger(response.statusCode) ? response.statusCode : null;
-  const bodyStatus = typeof response.body?.status === 'string' ? response.body.status : null;
+  const recognizedStatuses = ['UP', 'DOWN', 'OUT_OF_SERVICE', 'UNKNOWN'];
+  const bodyStatus = recognizedStatuses.includes(response.body?.status) ? response.body.status : null;
   const healthy = httpCode !== null && httpCode >= 200 && httpCode < 300 && bodyStatus === 'UP';
   return {
     healthy,

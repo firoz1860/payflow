@@ -42,3 +42,14 @@ test('healthy gateway ends incident workflow before email; failure does not comm
   assert.equal(recovery.length, 1);
   assert.equal(recovery[0].json.status, 'healthy');
 });
+
+test('generated notification workflows do not relay arbitrary health response text', () => {
+  for (const name of ['payflow-health-alert', 'payflow-daily-summary']) {
+    const workflow = JSON.parse(fs.readFileSync(path.join(__dirname, `${name}.json`)));
+    const code = workflow.nodes.find(node => node.name === 'Classify Gateway Health').parameters.jsCode;
+    const run = new Function('$input', '$getWorkflowStaticData', code);
+    const response = { statusCode: 503, body: { status: 'private server error detail' } };
+    const result = run({ first: () => ({ json: response }) }, () => ({}));
+    assert.equal(result[0].json.detail, 'HTTP 503; health status missing/invalid');
+  }
+});
