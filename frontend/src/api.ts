@@ -31,7 +31,9 @@ api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError<ApiError>) => {
     const original = error.config as any;
-    if (error.response?.status === 401 && !original._retry) {
+    const publicAuth = ['/auth/login', '/auth/register', '/auth/guest', '/auth/readiness'].includes(original?.url);
+    // A rejected public auth request must not refresh an old session and replay a POST.
+    if (error.response?.status === 401 && original && !original._retry && !publicAuth) {
       const refreshToken = useAuthStore.getState().refreshToken;
       if (!refreshToken || refreshing) {
         if (refreshing) {
