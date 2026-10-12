@@ -1,0 +1,27 @@
+name: n8n operations templates
+on:
+  pull_request:
+    paths:
+      - 'automation/n8n/**'
+      - '.github/workflows/n8n-operations.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'automation/n8n/**'
+      - '.github/workflows/n8n-operations.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify health classification and delivery state
+        run: node --test automation/n8n/*.test.cjs
+      - name: Verify generated templates are current
+        run: |
+          python3 automation/n8n/generate-workflows.py
+          git diff --exit-code -- automation/n8n/*.json
