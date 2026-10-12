@@ -18,15 +18,21 @@ public class OutboxPublisher {
     private final OutboxProperties properties;
     private final Counter publishedCounter;
     private final Counter failedCounter;
+    private final List<OutboxDelivery> deliveries;
     public OutboxPublisher(OutboxEventRepository repository,
                            KafkaTemplate<String, String> kafkaTemplate,
                            OutboxProperties properties,
                            MeterRegistry meterRegistry) {
+        this(repository, kafkaTemplate, properties, meterRegistry, List.of());
+    }
+    public OutboxPublisher(OutboxEventRepository repository, KafkaTemplate<String, String> kafkaTemplate,
+                           OutboxProperties properties, MeterRegistry meterRegistry, List<OutboxDelivery> deliveries) {
         this.repository = repository;
         this.kafkaTemplate = kafkaTemplate;
         this.properties = properties;
         this.publishedCounter = Counter.builder("payflow.outbox.published").register(meterRegistry);
         this.failedCounter = Counter.builder("payflow.outbox.publish.failed").register(meterRegistry);
+        this.deliveries = List.copyOf(deliveries);
     }
     @Scheduled(fixedDelayString = "${payflow.outbox.poll-interval-ms:1000}")
     @Transactional
@@ -41,14 +47,19 @@ public class OutboxPublisher {
         }
         for (OutboxEvent event : batch) {
             try {
-                ProducerRecord<String, String> record = new ProducerRecord<>(
-                        properties.topicFor(event.getEventType()), event.getPartitionKey(), event.getPayload());
-                record.headers().add("eventId", event.getId().toString().getBytes());
-                record.headers().add("eventType", event.getEventType().getBytes());
-                if (event.getCorrelationId() != null) {
-                    record.headers().add(CorrelationId.HEADER, event.getCorrelationId().getBytes());
+                var delivery = deliveries.stream().filter(candidate -> candidate.supports(event)).findFirst();
+                if (delivery.isPresent()) {
+                    delivery.get().publish(event);
+                } else {
+                    ProducerRecord<String, String> record = new ProducerRecord<>(
+                            properties.topicFor(event.getEventType()), event.getPartitionKey(), event.getPayload());
+                    record.headers().add("eventId", event.getId().toString().getBytes());
+                    record.headers().add("eventType", event.getEventType().getBytes());
+                    if (event.getCorrelationId() != null) {
+                        record.headers().add(CorrelationId.HEADER, event.getCorrelationId().getBytes());
+                    }
+                    kafkaTemplate.send(record).get(10, TimeUnit.SECONDS);
                 }
-                kafkaTemplate.send(record).get(10, TimeUnit.SECONDS);
                 event.markPublished();
                 publishedCounter.increment();
             } catch (InterruptedException ex) {
