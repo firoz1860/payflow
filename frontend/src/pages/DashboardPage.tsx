@@ -59,7 +59,7 @@ export function DashboardPage() {
       setApiKeys(keys);
       if (user && onboarding) {
         setUser({ ...user, onboarding });
-        if (owner && onboarding.status === 'NOT_STARTED') {
+        if (owner && onboarding.status === 'NOT_STARTED' && reloadCount === 0) {
           setTutorialMode(false);
           setWizardOpen(true);
         }

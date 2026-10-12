@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { DashboardPage } from './DashboardPage';
 import { AnalyticsPage } from './AnalyticsPage';
@@ -32,8 +32,10 @@ beforeEach(() => {
   vi.resetAllMocks();
   useAuthStore.setState({ user: {
     id: 'summary-test-merchant', email: 'guest@payflow.demo', emailVerified: true, fullName: 'Guest Merchant',
-    roles: ['MERCHANT_OWNER'], permissions: ['api_keys:manage'], onboarding: { status: 'COMPLETED' },
-  } as User });
+    merchantId: 'summary-test-merchant', status: 'ACTIVE', createdAt: '2026-10-12T14:00:00Z',
+    roles: ['MERCHANT_OWNER'], permissions: ['api_keys:manage'],
+    onboarding: { status: 'COMPLETED', lastStep: 5, dismissedAt: null, completedAt: '2026-10-12T14:00:00Z' },
+  } satisfies User });
   payment.listPayments.mockResolvedValue({ data: [captured] });
   merchant.getMyMerchant.mockResolvedValue({ defaultCurrency: 'INR' });
   merchant.listApiKeys.mockResolvedValue([]);
@@ -67,6 +69,28 @@ test('a verified empty dashboard remains an actual empty state', async () => {
   expect(await screen.findByText('No payments yet')).toBeInTheDocument();
   expect(screen.getByText('Total Volume')).toBeInTheDocument();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test('dashboard retry for an owner with unstarted onboarding performs no onboarding writes', async () => {
+  const unstarted = { status: 'NOT_STARTED', lastStep: 1, dismissedAt: null, completedAt: null };
+  onboarding.getOnboarding.mockResolvedValue(unstarted);
+  onboarding.updateOnboarding.mockResolvedValue({ ...unstarted, status: 'IN_PROGRESS' });
+  payment.listPayments.mockRejectedValueOnce(new Error('timeout'));
+  render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+  await screen.findByRole('alert');
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  await screen.findByRole('link', { name: /pay_summary_verified/ });
+  expect(onboarding.updateOnboarding).not.toHaveBeenCalled();
+  expect(screen.queryByRole('heading', { name: 'Welcome to PayFlow' })).not.toBeInTheDocument();
+});
+
+test('initial successful dashboard retains the existing first-time onboarding behavior', async () => {
+  const unstarted = { status: 'NOT_STARTED', lastStep: 1, dismissedAt: null, completedAt: null };
+  onboarding.getOnboarding.mockResolvedValue(unstarted);
+  onboarding.updateOnboarding.mockResolvedValue({ ...unstarted, status: 'IN_PROGRESS' });
+  render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+  await waitFor(() => expect(onboarding.updateOnboarding).toHaveBeenCalledTimes(1));
+  expect(onboarding.updateOnboarding).toHaveBeenCalledWith('START');
 });
 
 test('dashboard skips reads the current role cannot perform', async () => {
