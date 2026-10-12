@@ -59,6 +59,11 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 payflow:
+  auth-email:
+    enabled: ${PAYFLOW_AUTH_EMAIL_ENABLED:false}
+    api-key: ${RESEND_API_KEY:}
+    from: ${PAYFLOW_AUTH_EMAIL_FROM:}
+    frontend-url: ${PAYFLOW_FRONTEND_URL:}
   jwt:
     secret: ${JWT_SECRET}
     issuer: payflow-auth

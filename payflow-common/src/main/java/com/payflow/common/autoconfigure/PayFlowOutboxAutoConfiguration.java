@@ -5,6 +5,7 @@ import com.payflow.common.outbox.OutboxEventRepository;
 import com.payflow.common.outbox.OutboxProperties;
 import com.payflow.common.outbox.OutboxPublisher;
 import com.payflow.common.outbox.OutboxRecorder;
+import com.payflow.common.outbox.OutboxDelivery;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -13,6 +14,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -47,7 +49,9 @@ public class PayFlowOutboxAutoConfiguration {
     public OutboxPublisher outboxPublisher(OutboxEventRepository repository,
                                            KafkaTemplate<String, String> kafkaTemplate,
                                            OutboxProperties properties,
-                                           MeterRegistry meterRegistry) {
-        return new OutboxPublisher(repository, kafkaTemplate, properties, meterRegistry);
+                                           MeterRegistry meterRegistry,
+                                           ObjectProvider<OutboxDelivery> deliveries) {
+        return new OutboxPublisher(repository, kafkaTemplate, properties, meterRegistry,
+                deliveries.orderedStream().toList());
     }
 }

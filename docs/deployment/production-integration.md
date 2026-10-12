@@ -65,7 +65,7 @@ displayed 3 trial days remaining on 11 October 2026.
 - Vercel configuration access returns 403 for the selected team.
 - Copilot needs a deployment and secure shared-secret/database wiring.
 - Signed automation endpoints and notification delivery remain unfinished.
-- Email verification/reset delivery is unfinished; never expose reset tokens.
+- Authentication email supports opt-in HTTPS delivery; live provider configuration and inbox acceptance remain pending. See [authentication email](authentication-email.md). Never expose reset tokens.
 - Dependency and secret scanning are mandatory and passed on releases #28 and #29; continue enforcing them on future changes.
 - Free Render cold starts and downstream timeout failures remain observable.
 - Sandbox payment success does not establish live provider readiness.
