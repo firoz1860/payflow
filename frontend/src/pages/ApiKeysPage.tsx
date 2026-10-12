@@ -4,6 +4,7 @@ import { createApiKey, listApiKeys, revokeApiKey, updateApiKey } from '../servic
 import { PageHeader } from '../components/PageHeader';
 import { Modal } from '../components/Modal';
 import { CardSpinner, EmptyState } from '../components/Spinner';
+import { LoadErrorState } from '../components/LoadErrorState';
 import { toast } from '../components/Toast';
 import { extractError } from '../api';
 import { formatDateTime, timeAgo } from '../lib/utils';
@@ -13,6 +14,7 @@ import type { ApiKey, CreateApiKeyResponse } from '../types';
 export function ApiKeysPage() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [newKey, setNewKey] = useState<CreateApiKeyResponse | null>(null);
   const [copied, setCopied] = useState(false);
@@ -25,8 +27,9 @@ export function ApiKeysPage() {
 
   const load = async () => {
     setLoading(true);
+    setLoadError(false);
     try { setKeys(await listApiKeys()); }
-    catch { setKeys([]); }
+    catch { setLoadError(true); }
     finally { setLoading(false); }
   };
 
@@ -98,7 +101,13 @@ export function ApiKeysPage() {
       />
 
       <div className="card overflow-hidden">
-        {loading ? <CardSpinner /> : keys.length === 0 ? (
+        {loading ? <CardSpinner /> : loadError ? (
+          <LoadErrorState
+            title="API keys are unavailable"
+            description="Your keys couldn't be loaded. Retry to check the latest key list."
+            onRetry={() => { void load(); }}
+          />
+        ) : keys.length === 0 ? (
           <EmptyState icon={<KeyRound className="w-6 h-6" />} title="No API keys yet"
             description="Create an API key to start integrating payments"
             action={<button onClick={() => setCreateOpen(true)} className="btn-primary"><Plus className="w-4 h-4" /> Create Key</button>} />

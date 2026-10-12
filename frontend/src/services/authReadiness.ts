@@ -23,7 +23,7 @@ export async function waitForAuthReady(options: AuthRequestOptions = {}) {
     checkCancelled(options.signal);
     try {
       const response = await api.get<{ ready: boolean }>('/auth/readiness', {
-        signal: options.signal, timeout: Math.min(5000, deadline - Date.now()),
+        signal: options.signal, timeout: Math.min(25000, deadline - Date.now()),
       });
       checkCancelled(options.signal);
       if (response.data?.ready === true && Date.now() < deadline) {
