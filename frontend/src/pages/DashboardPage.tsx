@@ -14,6 +14,7 @@ import { getOnboarding } from '../services/onboardingService';
 import { useAuthStore } from '../store/auth';
 import { PageHeader } from '../components/PageHeader';
 import { CardSpinner, EmptyState } from '../components/Spinner';
+import { LoadErrorState } from '../components/LoadErrorState';
 import { StatusBadge } from '../components/StatusBadge';
 import { formatCurrency, timeAgo } from '../lib/utils';
 import { StaggerContainer, StaggerItem, AnimatedNumber } from '../lib/motion';
@@ -35,18 +36,22 @@ export function DashboardPage() {
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadCount, setReloadCount] = useState(0);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [tutorialMode, setTutorialMode] = useState(false);
   const [setupCardVisible, setSetupCardVisible] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
     const owner = !!user?.roles.includes('MERCHANT_OWNER');
     Promise.all([
-      listPayments({ page: 0, size: 100 }).catch(() => ({ data: [] })),
-      getMyMerchant().catch(() => null),
-      hasPermission('api_keys:manage') ? listApiKeys().catch(() => []) : Promise.resolve([]),
-      owner ? getOnboarding().catch(() => user?.onboarding ?? null) : Promise.resolve(user?.onboarding ?? null),
+      listPayments({ page: 0, size: 100 }),
+      getMyMerchant(),
+      hasPermission('api_keys:manage') ? listApiKeys() : Promise.resolve([]),
+      owner ? getOnboarding() : Promise.resolve(user?.onboarding ?? null),
     ]).then(([page, merch, keys, onboarding]) => {
       if (cancelled) return;
       setPayments(page.data || []);
@@ -59,11 +64,13 @@ export function DashboardPage() {
           setWizardOpen(true);
         }
       }
+    }).catch(() => {
+      if (!cancelled) setLoadError(true);
     }).finally(() => {
       if (!cancelled) setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, reloadCount]);
 
   useEffect(() => {
     if (searchParams.get('setup') === 'guide' && user?.roles.includes('MERCHANT_OWNER')) {
@@ -78,12 +85,10 @@ export function DashboardPage() {
     if (current) setUser({ ...current, onboarding });
   };
 
-  const closeWizard = async () => {
+  const closeWizard = () => {
     setWizardOpen(false);
     setTutorialMode(false);
-    if (hasPermission('api_keys:manage')) {
-      listApiKeys().then(setApiKeys).catch(() => undefined);
-    }
+    setReloadCount(count => count + 1);
   };
 
   const stats = computeStats(payments);
@@ -100,6 +105,9 @@ export function DashboardPage() {
   };
 
   if (loading) return <CardSpinner />;
+  if (loadError) return <LoadErrorState title="Dashboard is unavailable"
+    description="Your account summary couldn't be loaded. Retry to check the latest payment and setup information."
+    onRetry={() => setReloadCount(count => count + 1)} />;
 
   return (
     <>

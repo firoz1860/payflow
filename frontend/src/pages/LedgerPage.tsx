@@ -4,6 +4,7 @@ import { Landmark, RefreshCw, Scale, WalletCards } from 'lucide-react';
 import { listLedgerAccounts, listLedgerPostings } from '../services/ledgerService';
 import { PageHeader } from '../components/PageHeader';
 import { CardSpinner, EmptyState } from '../components/Spinner';
+import { LoadErrorState } from '../components/LoadErrorState';
 import { extractError } from '../api';
 import { toast } from '../components/Toast';
 import { formatCurrency, formatDateTime } from '../lib/utils';
@@ -13,14 +14,17 @@ export function LedgerPage() {
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [postings, setPostings] = useState<LedgerPosting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const load = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [a, p] = await Promise.all([listLedgerAccounts(), listLedgerPostings(100)]);
       setAccounts(a);
       setPostings(p);
     } catch (err) {
+      setLoadError(true);
       toast('error', extractError(err));
     } finally {
       setLoading(false);
@@ -46,6 +50,9 @@ export function LedgerPage() {
   }, [accounts, postings]);
 
   if (loading) return <CardSpinner />;
+  if (loadError) return <LoadErrorState title="Ledger is unavailable"
+    description="Your ledger records couldn't be loaded. Retry to check balances and postings."
+    onRetry={() => { void load(); }} />;
 
   return (
     <>

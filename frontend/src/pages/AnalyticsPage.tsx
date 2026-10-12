@@ -15,6 +15,7 @@ import {
 import { listPayments } from '../services/paymentService';
 import { PageHeader } from '../components/PageHeader';
 import { CardSpinner, EmptyState } from '../components/Spinner';
+import { LoadErrorState } from '../components/LoadErrorState';
 import { formatCurrency } from '../lib/utils';
 import type { Payment } from '../types';
 
@@ -32,14 +33,16 @@ const STATUS_COLORS: Record<string, string> = {
 export function AnalyticsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const load = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const page = await listPayments({ page: 0, size: 100 });
       setPayments(page.data || []);
     } catch {
-      setPayments([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -80,6 +83,9 @@ export function AnalyticsPage() {
   }, [payments]);
 
   if (loading) return <CardSpinner />;
+  if (loadError) return <LoadErrorState title="Analytics are unavailable"
+    description="Payment data couldn't be loaded. Retry to check the latest analytics."
+    onRetry={() => { void load(); }} />;
 
   return (
     <>
