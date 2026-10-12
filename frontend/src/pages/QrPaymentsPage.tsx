@@ -17,6 +17,7 @@ export function QrPaymentsPage() {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const idempotencyKey = useMemo(
@@ -70,6 +71,7 @@ export function QrPaymentsPage() {
       return;
     }
     setCreating(true);
+    setCreateError(false);
     try {
       const created = await createPayment(
         {
@@ -84,6 +86,7 @@ export function QrPaymentsPage() {
       setPayment(created);
       toast('success', 'QR payment created. Waiting for provider confirmation.');
     } catch (error) {
+      setCreateError(true);
       toast('error', extractError(error));
     } finally {
       setCreating(false);
@@ -109,6 +112,7 @@ export function QrPaymentsPage() {
 
   const reset = () => {
     setPayment(null);
+    setCreateError(false);
     setQrImage(null);
     setOrderId(`order_${Date.now()}`);
   };
@@ -158,6 +162,13 @@ export function QrPaymentsPage() {
                 </p>
               </div>
             </div>
+
+            {createError && (
+              <div role="alert" className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p>The request did not return a payment result. Check Payments for the order before retrying. Keep the same values and idempotency key when retrying this order.</p>
+                <Link to="/payments" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-semibold underline">View payments in new tab</Link>
+              </div>
+            )}
 
             <button type="submit" disabled={creating} className="btn-primary mt-6 w-full">
               {creating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <QrIcon className="h-4 w-4" />}
