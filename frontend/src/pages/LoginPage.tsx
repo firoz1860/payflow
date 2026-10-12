@@ -7,6 +7,8 @@ import { extractError } from '../api';
 import { toast } from '../components/Toast';
 import { Spinner } from '../components/Spinner';
 import { AuthShell } from '../components/AuthShell';
+import { AuthStartupStatus } from '../components/AuthStartupStatus';
+import { useAuthRequest } from '../hooks/useAuthRequest';
 import { motion } from 'framer-motion';
 
 export function LoginPage() {
@@ -15,38 +17,33 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [guestLoading, setGuestLoading] = useState(false);
+  const request = useAuthRequest();
   const [error, setError] = useState('');
 
   const handleGuest = async () => {
     setError('');
-    setGuestLoading(true);
     try {
-      const res = await guestLogin();
+      const res = await request.run('guest', guestLogin);
+      if (!res) return;
       loginStore(res.accessToken, res.refreshToken, res.user);
       toast('success', 'Signed in as a guest — explore the demo.');
       navigate('/dashboard');
     } catch (err) {
       setError(extractError(err));
-    } finally {
-      setGuestLoading(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
     try {
-      const res = await login(email, password);
+      const res = await request.run('account', options => login(email, password, options));
+      if (!res) return;
       loginStore(res.accessToken, res.refreshToken, res.user);
       toast('success', `Welcome back, ${res.user.fullName}!`);
       navigate('/dashboard');
     } catch (err) {
       setError(extractError(err));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -120,11 +117,11 @@ export function LoginPage() {
             </div>
 
             <motion.button
-              type="submit" disabled={loading}
+              type="submit" disabled={request.pending}
               whileTap={{ scale: 0.98 }}
               className="btn-primary w-full"
             >
-              {loading ? <Spinner size="sm" /> : (
+              {request.kind === 'account' ? <Spinner size="sm" /> : (
                 <>Sign in <ArrowRight className="w-4 h-4" /></>
               )}
             </motion.button>
@@ -142,13 +139,15 @@ export function LoginPage() {
           <button
             type="button"
             onClick={handleGuest}
-            disabled={guestLoading || loading}
+            disabled={request.pending}
             className="btn-secondary w-full"
           >
-            {guestLoading ? <Spinner size="sm" /> : (
+            {request.kind === 'guest' ? <Spinner size="sm" /> : (
               <>Continue as guest <UserRound className="h-4 w-4" /></>
             )}
           </button>
+          <AuthStartupStatus phase={request.phase} cancel={request.cancel}
+            submitting={request.kind === 'guest' ? 'Creating your demo workspace…' : 'Signing you in…'} />
           <p className="mt-2 text-center text-xs text-slate-400">
             Spins up a temporary demo merchant — no signup, no real money.
           </p>
