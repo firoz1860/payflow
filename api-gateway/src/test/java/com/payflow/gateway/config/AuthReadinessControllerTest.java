@@ -16,6 +16,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 class AuthReadinessControllerTest {
+    @Test void productionDefaultsAllowSlowHealthyServicesInParallel() throws Exception {
+        var count = new AtomicInteger();
+        try (var auth = new Service(200, "UP", count, 4000); var merchant = new Service(200, "UP", count, 4000)) {
+            long started = System.nanoTime();
+            var response = new AuthReadinessController(auth.uri().toString(), merchant.uri().toString())
+                    .readiness().block(Duration.ofSeconds(25));
+            assertTrue(response.getBody().ready());
+            assertEquals(2, count.get());
+            assertTrue(Duration.ofNanos(System.nanoTime() - started).compareTo(Duration.ofSeconds(8)) < 0);
+        }
+    }
+
     @Test void requiresBothServicesAndCachesProbesWithoutExposingInfrastructure() throws Exception {
         var count = new AtomicInteger();
         try (var auth = new Service(200, "UP", count); var merchant = new Service(200, "UP", count)) {
@@ -84,12 +96,33 @@ class AuthReadinessControllerTest {
                 .assertNext(response -> assertTrue(response.getBody().ready())).verifyComplete();
         assertEquals(2, count.get());
     }
+    @Test void cancellingOneCallerDoesNotCancelSharedWarmupProbes() {
+        var count = new AtomicInteger();
+        StepVerifier.withVirtualTime(() -> {
+            var client = WebClient.builder().exchangeFunction(request -> {
+                count.incrementAndGet();
+                return Mono.delay(Duration.ofSeconds(6)).map(ignored -> ClientResponse.create(HttpStatus.OK)
+                        .header("Content-Type", "application/json").body("{\"status\":\"UP\"}").build());
+            }).build();
+            var controller = new AuthReadinessController(client, URI.create("https://auth.example.test"),
+                    URI.create("https://merchant.example.test"), Duration.ofSeconds(20), Duration.ofSeconds(3));
+            var firstCaller = controller.readiness().subscribe();
+            firstCaller.dispose();
+            return Mono.delay(Duration.ofSeconds(1)).then(controller.readiness());
+        }).expectSubscription().thenAwait(Duration.ofSeconds(6))
+                .assertNext(response -> assertTrue(response.getBody().ready())).verifyComplete();
+        assertEquals(2, count.get());
+    }
     static class Service implements AutoCloseable {
         private final HttpServer server;
         Service(int status, String health, AtomicInteger count) throws Exception {
+            this(status, health, count, 0);
+        }
+        Service(int status, String health, AtomicInteger count, long delayMillis) throws Exception {
             server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             server.createContext("/actuator/health", exchange -> {
                 count.incrementAndGet();
+                java.util.concurrent.locks.LockSupport.parkNanos(Duration.ofMillis(delayMillis).toNanos());
                 byte[] body = ("{\"status\":\"" + health + "\"}").getBytes(StandardCharsets.UTF_8);
                 exchange.getResponseHeaders().add("Content-Type", "application/json");
                 exchange.sendResponseHeaders(status, body.length);

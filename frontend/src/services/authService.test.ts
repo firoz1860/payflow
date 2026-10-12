@@ -30,6 +30,19 @@ test('retries only the readiness GET after a transient startup failure', async (
   expect(api.post).toHaveBeenCalledTimes(1);
 });
 
+test('allows a slow healthy readiness response before submitting one guest', async () => {
+  vi.mocked(api.get).mockImplementation((_url, options) => new Promise((resolve, reject) => {
+    setTimeout(() => resolve({ data: { ready: true } }), 6000);
+    setTimeout(() => reject(new Error('readiness timed out')), options?.timeout);
+  }));
+  vi.mocked(api.post).mockResolvedValue({ data: {} });
+  const result = guestLogin();
+  await vi.advanceTimersByTimeAsync(6000);
+  expect(api.post).toHaveBeenCalledTimes(1);
+  await result;
+  expect(api.get).toHaveBeenCalledTimes(1);
+});
+
 test('cancelling startup prevents guest creation and further polls', async () => {
   vi.mocked(api.get).mockResolvedValue({ data: { ready: false } });
   const controller = new AbortController();
