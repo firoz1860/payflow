@@ -8,9 +8,9 @@ import { getPayment, cancelPayment } from '../services/paymentService';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { CardSpinner, EmptyState } from '../components/Spinner';
+import { LoadErrorState } from '../components/LoadErrorState';
 import { Modal } from '../components/Modal';
 import { toast } from '../components/Toast';
-import { extractError } from '../api';
 import { formatCurrency, formatDateTime } from '../lib/utils';
 import { useAuthStore } from '../store/auth';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,44 +18,74 @@ import type { Payment } from '../types';
 
 export function PaymentDetailPage() {
   const { reference } = useParams<{ reference: string }>();
+  const currentReference = useRef(reference);
+  currentReference.current = reference;
   const navigate = useNavigate();
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const pollDeadline = useRef(Date.now() + 60000);
-  useEffect(() => { pollDeadline.current = Date.now() + 60000; }, [reference]);
+  const requestSequence = useRef(0);
+  const cancelInFlight = useRef(false);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [readError, setReadError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
 
   const load = useCallback(async () => {
-    if (!reference) return;
+    if (!reference || cancelInFlight.current) return;
+    const sequence = ++requestSequence.current;
     setLoading(true);
     try {
-      setPayment(await getPayment(reference));
-    } catch {
+      const updated = await getPayment(reference);
+      if (sequence !== requestSequence.current) return;
+      if (updated.paymentReference !== reference) throw new Error('Unexpected payment identity');
+      setPayment(updated);
+      setReadError(null);
+    } catch (error: any) {
+      if (sequence !== requestSequence.current) return;
       setPayment(null);
+      setReadError(error?.response?.status === 404 ? null : 'Payment status could not be loaded. Retry to read its current status.');
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) setLoading(false);
     }
   }, [reference]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    pollDeadline.current = Date.now() + 60000;
+    cancelInFlight.current = false;
+    setCancelLoading(false);
+    setCancelOpen(false);
+    setCancelReason('');
+    setCopied(false);
+    load();
+    return () => { ++requestSequence.current; };
+  }, [load]);
 
   useEffect(() => {
-    if (!payment || !['CREATED', 'PENDING', 'PROCESSING', 'AUTHORIZED'].includes(payment.status) || Date.now() >= pollDeadline.current) return;
+    if (!payment || payment.paymentReference !== reference || loading || readError || cancelLoading
+      || !['CREATED', 'PENDING', 'PROCESSING', 'AUTHORIZED'].includes(payment.status) || Date.now() >= pollDeadline.current) return;
     let active = true; let fetching = false;
     const interval = setInterval(async () => {
       if (Date.now() >= pollDeadline.current) { clearInterval(interval); return; }
-      if (fetching) return;
+      if (fetching || cancelInFlight.current) return;
       fetching = true;
-      try { const updated = await getPayment(payment.paymentReference); if (active) setPayment(updated); }
-      catch { /* Manual refresh remains available. */ }
+      const sequence = ++requestSequence.current;
+      try {
+        const updated = await getPayment(payment.paymentReference);
+        if (!active || sequence !== requestSequence.current) return;
+        if (updated.paymentReference !== reference) throw new Error('Unexpected payment identity');
+        setPayment(updated);
+      } catch (error: any) {
+        if (!active || sequence !== requestSequence.current) return;
+        setPayment(null);
+        setReadError(error?.response?.status === 404 ? null : 'Payment status could not be loaded. Retry to read its current status.');
+      }
       finally { fetching = false; }
     }, 5000);
     return () => { active = false; clearInterval(interval); };
-  }, [payment?.status, reference]);
+  }, [payment?.status, reference, loading, readError, cancelLoading]);
 
   const copyRef = () => {
     navigator.clipboard.writeText(reference || '');
@@ -64,25 +94,38 @@ export function PaymentDetailPage() {
   };
 
   const handleCancel = async () => {
-    if (!reference) return;
+    if (!reference || !payment || payment.paymentReference !== reference || loading || readError || cancelInFlight.current
+      || !hasPermission('payments:create') || payment.provider === 'razorpay'
+      || !['CREATED', 'PENDING', 'PROCESSING', 'AUTHORIZED'].includes(payment.status)) return;
+    const sequence = ++requestSequence.current;
+    cancelInFlight.current = true;
     setCancelLoading(true);
     try {
-      const updated = await cancelPayment(reference, cancelReason || undefined);
+      const updated = await cancelPayment(payment.paymentReference, cancelReason || undefined);
+      if (sequence !== requestSequence.current) return;
+      if (updated.paymentReference !== reference) throw new Error('Unexpected payment identity');
       setPayment(updated);
       setCancelOpen(false);
       setCancelReason('');
       toast('success', 'Payment cancelled');
-    } catch (err) {
-      toast('error', extractError(err));
+    } catch {
+      if (sequence !== requestSequence.current) return;
+      setPayment(null);
+      setCancelOpen(false);
+      setReadError('Cancellation result could not be confirmed. Retry to read the payment status before another action.');
     } finally {
-      setCancelLoading(false);
+      if (sequence === requestSequence.current) {
+        cancelInFlight.current = false;
+        setCancelLoading(false);
+      }
     }
   };
 
-  if (loading) return <CardSpinner />;
+  if (loading || (payment && payment.paymentReference !== reference)) return <CardSpinner />;
+  if (readError) return <LoadErrorState title="Payment details are unavailable" description={readError} onRetry={load} />;
   if (!payment) return <EmptyState icon={<XCircle className="w-6 h-6" />} title="Payment not found" />;
 
-  const canCancel = payment.provider !== 'razorpay' && ['CREATED', 'PENDING', 'PROCESSING', 'AUTHORIZED'].includes(payment.status);
+  const canCancel = hasPermission('payments:create') && payment.provider !== 'razorpay' && ['CREATED', 'PENDING', 'PROCESSING', 'AUTHORIZED'].includes(payment.status);
   const isPending = ['CREATED', 'PENDING', 'PROCESSING'].includes(payment.status);
 
   return (
@@ -107,9 +150,9 @@ export function PaymentDetailPage() {
                 <Sparkles className="w-4 h-4 text-blue-600" /> Ask Copilot
               </button>
             )}
-            <button onClick={load} className="btn-secondary"><RefreshCw className="w-4 h-4" /> Refresh</button>
+            <button onClick={load} disabled={cancelLoading} className="btn-secondary"><RefreshCw className="w-4 h-4" /> Refresh</button>
             {canCancel && (
-              <button onClick={() => setCancelOpen(true)} className="btn-danger">
+              <button onClick={() => setCancelOpen(true)} disabled={cancelLoading} className="btn-danger">
                 <Cancel className="w-4 h-4" /> Cancel Payment
               </button>
             )}
@@ -234,7 +277,13 @@ export function PaymentDetailPage() {
           )}
 
           {payment.provider === 'razorpay' && payment.environment === 'TEST' && ['PENDING', 'PROCESSING', 'AUTHORIZED'].includes(payment.status) && !payment.qrCode && (
-            <RazorpayCheckout key={payment.paymentReference} paymentReference={payment.paymentReference} onUpdated={setPayment} />
+            <RazorpayCheckout key={payment.paymentReference} paymentReference={payment.paymentReference} onUpdated={updated => {
+              if (updated.paymentReference !== reference || updated.paymentReference !== currentReference.current || cancelInFlight.current) return;
+              ++requestSequence.current;
+              setPayment(updated);
+              setReadError(null);
+              setLoading(false);
+            }} />
           )}
           {payment.checkoutUrl && payment.provider !== 'razorpay' && (
             <motion.div
@@ -276,15 +325,15 @@ export function PaymentDetailPage() {
         <div className="mb-4">
           <label className="label">Reason (optional)</label>
           <textarea
-            value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
+            value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} disabled={cancelLoading}
             placeholder="Reason for cancellation…"
             className="input min-h-[80px] resize-none"
           />
         </div>
         <div className="flex justify-end gap-2">
           <button onClick={() => setCancelOpen(false)} className="btn-secondary">Cancel</button>
-          <button onClick={handleCancel} className="btn-danger">
-            {cancelLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Confirm Cancel'}
+          <button onClick={handleCancel} disabled={cancelLoading} className="btn-danger">
+            {cancelLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : null} Confirm Cancel
           </button>
         </div>
       </Modal>
