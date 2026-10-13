@@ -1,5 +1,9 @@
 package com.payflow.payment.integration;
 import com.payflow.payment.service.IdempotencyService;
+import com.payflow.payment.repository.IdempotencyRecordRepository;
+import com.payflow.common.error.PayFlowException;
+import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +20,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
@@ -27,6 +33,8 @@ class IdempotencyIT {
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
     @Autowired
     private IdempotencyService idempotencyService;
+    @Autowired private IdempotencyRecordRepository records;
+    @Autowired private JdbcTemplate jdbc;
     @Test
     @DisplayName("the same key with the same body replays instead of re-executing")
     void sameKeySameBodyReplays() {
@@ -76,16 +84,19 @@ class IdempotencyIT {
         ExecutorService pool = Executors.newFixedThreadPool(threads);
         AtomicInteger acquired = new AtomicInteger();
         AtomicInteger rejected = new AtomicInteger();
+        CyclicBarrier ready = new CyclicBarrier(threads);
         List<Callable<Void>> tasks = java.util.stream.IntStream.range(0, threads)
                 .<Callable<Void>>mapToObj(i -> () -> {
+                    ready.await(30, TimeUnit.SECONDS);
                     try {
                         var claim = idempotencyService.claim(merchantId, key,
                                 "POST /api/v1/payments", body);
                         if (claim instanceof IdempotencyService.Claim.Acquired) {
                             acquired.incrementAndGet();
                         }
-                    } catch (RuntimeException ex) {
-                        rejected.incrementAndGet();   // 409 "currently being processed"
+                    } catch (PayFlowException ex) {
+                        assertThat(ex.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+                        rejected.incrementAndGet();
                     }
                     return null;
                 })
@@ -96,5 +107,48 @@ class IdempotencyIT {
         pool.shutdown();
         assertThat(acquired.get()).isEqualTo(1);
         assertThat(acquired.get() + rejected.get()).isEqualTo(threads);
+    }
+
+    @Test
+    void aStaleClaimIsUnknownAndCannotBeTakenOver() {
+        UUID merchant = UUID.randomUUID();
+        String key = "stale-" + UUID.randomUUID();
+        var claim = (IdempotencyService.Claim.Acquired) idempotencyService.claim(merchant, key, "POST /api/v1/payments", "{}");
+        jdbc.update("UPDATE idempotency_records SET created_at=now()-interval '1 hour' WHERE id=?", claim.recordId());
+        var before = records.findById(claim.recordId()).orElseThrow().getCreatedAt();
+        assertThatThrownBy(() -> idempotencyService.claim(merchant, key, "POST /api/v1/payments", "{}"))
+                .isInstanceOfSatisfying(PayFlowException.class, ex -> {
+                    assertThat(ex.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+                    assertThat(ex.getCode().name()).isEqualTo("PAYMENT_CREATION_UNCERTAIN");
+                });
+        assertThat(records.findById(claim.recordId()).orElseThrow().getCreatedAt()).isEqualTo(before);
+    }
+
+    @Test
+    void failedClaimsStillRejectAChangedBody() {
+        UUID merchant = UUID.randomUUID();
+        String key = "failed-body-" + UUID.randomUUID();
+        var claim = (IdempotencyService.Claim.Acquired) idempotencyService.claim(merchant, key, "POST /api/v1/payments", "{\"amount\":10}");
+        idempotencyService.fail(claim.recordId());
+        assertThatThrownBy(() -> idempotencyService.claim(merchant, key, "POST /api/v1/payments", "{\"amount\":20}"))
+                .isInstanceOfSatisfying(PayFlowException.class, ex -> {
+                    assertThat(ex.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+                    assertThat(ex.getCode().name()).isEqualTo("IDEMPOTENCY_KEY_REUSED");
+                });
+    }
+
+    @Test
+    void expiryCleanupKeepsUnresolvedClaimsAndDeletesOnlyCompletedReplays() {
+        UUID merchant = UUID.randomUUID();
+        var failed = (IdempotencyService.Claim.Acquired) idempotencyService.claim(merchant, "failed-" + UUID.randomUUID(), "POST /api/v1/payments", "{}");
+        var pending = (IdempotencyService.Claim.Acquired) idempotencyService.claim(merchant, "pending-" + UUID.randomUUID(), "POST /api/v1/payments", "{}");
+        var completed = (IdempotencyService.Claim.Acquired) idempotencyService.claim(merchant, "done-" + UUID.randomUUID(), "POST /api/v1/payments", "{}");
+        idempotencyService.fail(failed.recordId());
+        idempotencyService.complete(completed.recordId(), "pay_completed", 201, "{}");
+        jdbc.update("UPDATE idempotency_records SET expires_at=now()-interval '1 hour' WHERE id IN (?, ?, ?)", failed.recordId(), pending.recordId(), completed.recordId());
+        idempotencyService.purgeExpired();
+        assertThat(records.findById(failed.recordId())).isPresent();
+        assertThat(records.findById(pending.recordId())).isPresent();
+        assertThat(records.findById(completed.recordId())).isEmpty();
     }
 }
