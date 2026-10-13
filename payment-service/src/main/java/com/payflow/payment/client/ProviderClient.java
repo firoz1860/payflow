@@ -86,7 +86,7 @@ public class ProviderClient {
                 request.paymentReference(), throwable.toString());
         throw new PayFlowException(ErrorCode.PROVIDER_UNAVAILABLE,
                 org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
-                "Payment provider is temporarily unavailable. Retry with the same Idempotency-Key.");
+                "Payment provider is temporarily unavailable. Creation may have been recorded; check Payments before starting another request.");
     }
     @CircuitBreaker(name = "providerService")
     public ProviderPaymentResponse getPayment(String provider, String providerPaymentId) {

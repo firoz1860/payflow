@@ -43,7 +43,8 @@ already-rotated token revokes the entire family, because it means the token leak
 | `RISK_BLOCKED` | 422 | Declined by risk checks |
 | `REFUND_AMOUNT_EXCEEDED` | 422 | Would exceed the refundable balance |
 | `RATE_LIMITED` | 429 | Slow down |
-| `PROVIDER_UNAVAILABLE` | 503 | Retry with the **same** Idempotency-Key |
+| `PROVIDER_UNAVAILABLE` | 503 | Check payment/provider state; creation may already have been recorded |
+| `PAYMENT_CREATION_UNCERTAIN` | 503 | Review the original creation outcome; do not start another request with a new key |
 
 ## Create a payment
 
@@ -65,9 +66,22 @@ Content-Type: application/json
 }
 ```
 
-`Idempotency-Key` is **required**. A timeout on this endpoint is indistinguishable
-from a failure, so you must be able to retry — and you can only retry safely
-because the key guarantees the retry will not create a second charge.
+`Idempotency-Key` is **required**. Reuse the same key and body for the same logical
+operation. A timeout leaves the outcome unknown. If the completed response was
+stored, a retry replays it; an active request returns 409. Failed or stale claims
+return 503 `PAYMENT_CREATION_UNCERTAIN` instead of executing creation again.
+Check the merchant payment history and provider outcome before starting another
+operation. A claim marked failed may still have a committed payment record.
+
+Completed responses have a 24-hour retention window. Cleanup preserves failed
+and in-progress claims, including expired ones, so an unresolved operation does
+not silently become eligible for recreation. Automatic reconciliation and an
+administrative cleanup API are not implemented by this change.
+
+The dashboard creation form keeps its request details and key while mounted,
+locks those details after a missing result, and provides a separate payment-history
+tab. Only an explicit retry sends another POST. Reloading or leaving the form
+discards its in-memory request; inspect history before opening a new creation form.
 
 Response `201`:
 

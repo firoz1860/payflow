@@ -97,14 +97,4 @@ public class IdempotencyRecord {
     public Instant getCreatedAt() {
         return createdAt;
     }
-    public void renew(String requestHash, Instant expiresAt) {
-        this.requestHash = requestHash;
-        this.status = Status.IN_PROGRESS;
-        this.createdAt = Instant.now();
-        this.completedAt = null;
-        this.responseBody = null;
-        this.responseCode = null;
-        this.resourceId = null;
-        this.expiresAt = expiresAt;
-    }
 }
