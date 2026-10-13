@@ -6,7 +6,6 @@ import com.payflow.payment.domain.IdempotencyRecord;
 import com.payflow.payment.repository.IdempotencyRecordRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -39,19 +38,15 @@ public class IdempotencyService {
         if (existing.isPresent()) {
             return evaluate(existing.get(), requestHash);
         }
-        try {
-            IdempotencyRecord record = new IdempotencyRecord(merchantId, idempotencyKey, endpoint,
-                    requestHash, Instant.now().plus(RETENTION));
-            repository.saveAndFlush(record);
-            return new Claim.Acquired(record.getId());
-        } catch (DataIntegrityViolationException ex) {
-            log.debug("Idempotency key {} lost the insert race for merchant {}", idempotencyKey, merchantId);
-            IdempotencyRecord winner = repository
-                    .findByMerchantIdAndIdempotencyKey(merchantId, idempotencyKey)
-                    .orElseThrow(() -> PayFlowException.conflict(ErrorCode.CONFLICT,
-                            "Concurrent request conflict, please retry"));
-            return evaluate(winner, requestHash);
+        UUID id = UUID.randomUUID();
+        if (repository.insertClaim(id, merchantId, idempotencyKey, endpoint,
+                requestHash, Instant.now().plus(RETENTION)) == 1) {
+            return new Claim.Acquired(id);
         }
+        // A duplicate insert must not abort this transaction before reading the winner.
+        IdempotencyRecord winner = repository.findByMerchantIdAndIdempotencyKey(merchantId, idempotencyKey)
+                .orElseThrow(() -> PayFlowException.conflict(ErrorCode.CONFLICT, "Concurrent request conflict, please retry"));
+        return evaluate(winner, requestHash);
     }
     private Claim evaluate(IdempotencyRecord record, String requestHash) {
         if (!Hashing.constantTimeEquals(record.getRequestHash(), requestHash)) {
@@ -62,20 +57,20 @@ public class IdempotencyService {
             case COMPLETED -> new Claim.Replay(
                     record.getResponseCode() == null ? 200 : record.getResponseCode(),
                     record.getResponseBody(), record.getResourceId());
-            case FAILED -> {
-                record.renew(requestHash, Instant.now().plus(RETENTION));
-                yield new Claim.Acquired(record.getId());
-            }
+            case FAILED -> throw uncertainCreation();
             case IN_PROGRESS -> {
                 if (record.isStale(STALE_AFTER)) {
-                    log.warn("Taking over stale idempotency claim {}", record.getId());
-                    record.renew(requestHash, Instant.now().plus(RETENTION));
-                    yield new Claim.Acquired(record.getId());
+                    throw uncertainCreation();
                 }
                 throw PayFlowException.conflict(ErrorCode.CONFLICT,
                         "A request with this Idempotency-Key is currently being processed");
             }
         };
+    }
+    private PayFlowException uncertainCreation() {
+        return new PayFlowException(ErrorCode.PAYMENT_CREATION_UNCERTAIN,
+                org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                "The previous payment creation outcome is unknown. Check Payments before starting another request.");
     }
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void complete(UUID recordId, String resourceId, int responseCode, String responseBody) {
@@ -99,7 +94,8 @@ public class IdempotencyService {
     @Scheduled(cron = "${payflow.idempotency.cleanup-cron:0 15 * * * *}")
     @Transactional
     public void purgeExpired() {
-        int removed = repository.deleteExpired(Instant.now());
+        // Unresolved claims retain the barrier against replaying an accepted creation.
+        int removed = repository.deleteExpired(Instant.now(), IdempotencyRecord.Status.COMPLETED);
         if (removed > 0) {
             log.info("Purged {} expired idempotency records", removed);
         }

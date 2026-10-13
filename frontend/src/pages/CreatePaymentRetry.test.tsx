@@ -53,6 +53,7 @@ test('an uncertain result stays visible and checking history does not submit ano
   fireEvent.click(check);
   expect(service.createPayment).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('spinbutton')).toHaveValue(10);
+  expect(screen.getByRole('spinbutton')).toBeDisabled();
 });
 
 test('synchronous repeated submits send only one creation request', async () => {

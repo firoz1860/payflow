@@ -1,6 +1,6 @@
 import { RazorpayCheckout } from '../components/RazorpayCheckout';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { CreditCard, Smartphone, QrCode, Building2, Wallet, ArrowRight, CheckCircle2, XCircle, Clock, ExternalLink, Copy } from 'lucide-react';
 import { createPayment } from '../services/paymentService';
 import { PageHeader } from '../components/PageHeader';
@@ -23,6 +23,9 @@ const METHODS: { value: PaymentMethod; label: string; icon: any; desc: string }[
 export function CreatePaymentPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [createError, setCreateError] = useState(false);
+  const submitting = useRef(false);
+  const request = useRef<{ payload: Parameters<typeof createPayment>[0]; key: string } | null>(null);
   const [result, setResult] = useState<Payment | null>(null);
   const [copied, setCopied] = useState(false);
   const [form, setForm] = useState({
@@ -32,25 +35,29 @@ export function CreatePaymentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     setLoading(true);
+    setCreateError(false);
     setResult(null);
     try {
-      const idempotencyKey = generateIdempotencyKey();
-      const payload: any = {
-        amount: parseFloat(form.amount),
-        currency: form.currency,
-        paymentMethod: form.paymentMethod,
-      };
-      if (form.merchantOrderId) payload.merchantOrderId = form.merchantOrderId;
-      if (form.description) payload.description = form.description;
-      if (form.returnUrl) payload.returnUrl = form.returnUrl;
-
-      const payment = await createPayment(payload, idempotencyKey);
+      if (!request.current) {
+        const payload: Parameters<typeof createPayment>[0] = {
+          amount: parseFloat(form.amount), currency: form.currency, paymentMethod: form.paymentMethod,
+        };
+        if (form.merchantOrderId) payload.merchantOrderId = form.merchantOrderId;
+        if (form.description) payload.description = form.description;
+        if (form.returnUrl) payload.returnUrl = form.returnUrl;
+        request.current = { payload, key: generateIdempotencyKey() };
+      }
+      const payment = await createPayment(request.current.payload, request.current.key);
       setResult(payment);
       toast('success', 'Payment created successfully');
     } catch (err) {
+      setCreateError(true);
       toast('error', extractError(err));
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };
@@ -77,6 +84,7 @@ export function CreatePaymentPage() {
             onSubmit={handleSubmit}
             className="max-w-2xl space-y-6"
           >
+            <fieldset disabled={loading || createError} className="space-y-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
               className="card p-6"
@@ -164,10 +172,17 @@ export function CreatePaymentPage() {
               </div>
             </motion.div>
 
+            </fieldset>
+            {createError && (
+              <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p>The request did not return a payment result. A payment may already exist. Check Payments before starting another request. Retrying keeps the original details and idempotency key.</p>
+                <Link to="/payments" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-semibold underline">View payments in new tab</Link>
+              </div>
+            )}
             <div className="flex items-center justify-end gap-3">
               <button type="button" onClick={() => navigate('/payments')} className="btn-secondary">Cancel</button>
               <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.98 }} className="btn-primary">
-                {loading ? <Spinner size="sm" /> : <>Create Payment <ArrowRight className="w-4 h-4" /></>}
+                {loading ? <Spinner size="sm" /> : <>{createError ? 'Retry same request' : 'Create Payment'} <ArrowRight className="w-4 h-4" /></>}
               </motion.button>
             </div>
 
@@ -294,7 +309,7 @@ export function CreatePaymentPage() {
             )}
 
             <div className="flex items-center justify-between gap-3">
-              <button onClick={() => setResult(null)} className="btn-secondary">
+              <button onClick={() => { request.current = null; setCreateError(false); setResult(null); }} className="btn-secondary">
                 Create Another
               </button>
               <button onClick={() => navigate(`/payments/${result.paymentReference}`)} className="btn-primary">
