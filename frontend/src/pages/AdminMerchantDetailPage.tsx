@@ -35,6 +35,7 @@ export function AdminMerchantDetailPage() {
       if (!id) { setMerchant(null); return; }
       const m = await getMerchant(id);
       if (sequence !== loadSequence.current) return;
+      if (m.id.toLowerCase() !== id.toLowerCase()) throw new Error('Merchant response does not match this account');
       setMerchant(m);
       setPricing({ feePercentage: m.feePercentage, fixedFee: m.fixedFee, settlementDelayDays: m.settlementDelayDays });
     } catch (err) {
@@ -55,8 +56,10 @@ export function AdminMerchantDetailPage() {
     return () => { loadSequence.current++; };
   }, [load]);
 
+  const isCurrentMerchant = !!merchant && merchant.id.toLowerCase() === id?.toLowerCase();
+
   const handleStatusChange = async () => {
-    if (!id || !statusModal) return;
+    if (!id || !statusModal || !isCurrentMerchant || actionLoading) return;
     const sequence = loadSequence.current;
     setActionLoading(true);
     try {
@@ -74,7 +77,7 @@ export function AdminMerchantDetailPage() {
   };
 
   const handlePricingSave = async () => {
-    if (!id) return;
+    if (!id || !isCurrentMerchant || actionLoading) return;
     const sequence = loadSequence.current;
     setActionLoading(true);
     try {
@@ -91,7 +94,7 @@ export function AdminMerchantDetailPage() {
   };
 
   const handleLiveMode = async () => {
-    if (!id) return;
+    if (!id || !isCurrentMerchant || actionLoading) return;
     if (!confirm('Enable live mode? This allows real payments.')) return;
     const sequence = loadSequence.current;
     setActionLoading(true);
@@ -107,7 +110,7 @@ export function AdminMerchantDetailPage() {
     }
   };
 
-  if (loading) return <CardSpinner />;
+  if (loading || (merchant && !isCurrentMerchant)) return <CardSpinner />;
   if (loadError) return <LoadErrorState title="Merchant details are unavailable"
     description="The merchant details could not be loaded. Retry before changing the account."
     onRetry={() => { void load(); }} />;

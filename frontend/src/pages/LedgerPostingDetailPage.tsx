@@ -23,6 +23,7 @@ export function LedgerPostingDetailPage() {
       const [record, lines] = await Promise.all([getLedgerPosting(postingId), getLedgerEntries(postingId)]);
       if (sequence !== loadSequence.current) return;
       if (!record || lines.length === 0) throw new Error('Ledger posting details could not be verified');
+      if (record.id.toLowerCase() !== postingId.toLowerCase()) throw new Error('Ledger response does not match this posting');
       setPosting(record);
       setEntries(lines);
     } catch (err) {
@@ -40,7 +41,7 @@ export function LedgerPostingDetailPage() {
     return () => { loadSequence.current++; };
   }, [load]);
 
-  if (loading) return <CardSpinner />;
+  if (loading || (posting && posting.id.toLowerCase() !== postingId.toLowerCase())) return <CardSpinner />;
   if (loadError) return <LoadErrorState title="Ledger posting is unavailable"
     description="The posting and its entries could not be verified. Retry to load the recorded details."
     onRetry={() => { void load(); }} />;
