@@ -148,6 +148,20 @@ webhook-management/delivery service is not part of the current core. The React
 dashboard therefore reports that capability as unavailable instead of showing
 fake endpoint or delivery data.
 
+## Merchant ledger reads
+
+`GET /api/v1/ledger/postings` lists up to 200 recent postings for the current
+merchant. `GET /api/v1/ledger/postings/{postingId}` reads the metadata for a
+specific posting, including older records outside that list. Its matching
+`GET /api/v1/ledger/postings/{postingId}/entries` route reads the entry lines.
+All three routes require authentication, `ledger:read`, and a merchant context.
+Missing and cross-merchant posting IDs both return 404.
+
+The dashboard loads a posting directly by ID. Service/read failures show a
+persistent error with an explicit read-only retry; a confirmed 404 shows the
+missing-record state. Missing entry lines do not display a zero-value BALANCED
+posting. These reads do not create or change financial records.
+
 ## Rate limits
 
 Token bucket in Redis, keyed per API key (falling back to IP).

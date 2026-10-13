@@ -1,17 +1,17 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Building2, DollarSign, Zap, ShieldCheck, RefreshCw, Save } from 'lucide-react';
 import { getMerchant, changeMerchantStatus, updateMerchantPricing, enableLiveMode } from '../services/merchantService';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { CardSpinner } from '../components/Spinner';
+import { LoadErrorState } from '../components/LoadErrorState';
 import { Modal } from '../components/Modal';
 import { toast } from '../components/Toast';
 import { extractError } from '../api';
 import { merchantStatusConfig } from '../lib/status';
 import { formatDateTime, formatCurrency } from '../lib/utils';
 import { motion } from 'framer-motion';
-import { useEffect } from 'react';
 import type { Merchant, MerchantStatus } from '../types';
 
 export function AdminMerchantDetailPage() {
@@ -19,66 +19,98 @@ export function AdminMerchantDetailPage() {
   const navigate = useNavigate();
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const loadSequence = useRef(0);
   const [statusModal, setStatusModal] = useState<MerchantStatus | null>(null);
   const [statusReason, setStatusReason] = useState('');
   const [pricingModal, setPricingModal] = useState(false);
   const [pricing, setPricing] = useState({ feePercentage: 0, fixedFee: 0, settlementDelayDays: 7 });
   const [actionLoading, setActionLoading] = useState(false);
 
-  const load = async () => {
-    if (!id) return;
+  const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
     setLoading(true);
+    setLoadError(false);
     try {
+      if (!id) { setMerchant(null); return; }
       const m = await getMerchant(id);
+      if (sequence !== loadSequence.current) return;
       setMerchant(m);
       setPricing({ feePercentage: m.feePercentage, fixedFee: m.fixedFee, settlementDelayDays: m.settlementDelayDays });
-    } catch {
+    } catch (err) {
+      if (sequence !== loadSequence.current) return;
       setMerchant(null);
+      setLoadError((err as { response?: { status?: number } })?.response?.status !== 404);
     } finally {
-      setLoading(false);
+      if (sequence === loadSequence.current) setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    setStatusModal(null);
+    setStatusReason('');
+    setPricingModal(false);
+    setActionLoading(false);
+    void load();
+    return () => { loadSequence.current++; };
+  }, [load]);
 
   const handleStatusChange = async () => {
     if (!id || !statusModal) return;
+    const sequence = loadSequence.current;
     setActionLoading(true);
     try {
       const m = await changeMerchantStatus(id, statusModal, statusReason || undefined);
+      if (sequence !== loadSequence.current) return;
       setMerchant(m);
       setStatusModal(null);
       setStatusReason('');
       toast('success', `Merchant ${statusModal.toLowerCase()}`);
-    } catch (err) { toast('error', extractError(err)); }
-    finally { setActionLoading(false); }
+    } catch (err) {
+      if (sequence === loadSequence.current) toast('error', extractError(err));
+    } finally {
+      if (sequence === loadSequence.current) setActionLoading(false);
+    }
   };
 
   const handlePricingSave = async () => {
     if (!id) return;
+    const sequence = loadSequence.current;
     setActionLoading(true);
     try {
       const m = await updateMerchantPricing(id, pricing);
+      if (sequence !== loadSequence.current) return;
       setMerchant(m);
       setPricingModal(false);
       toast('success', 'Pricing updated');
-    } catch (err) { toast('error', extractError(err)); }
-    finally { setActionLoading(false); }
+    } catch (err) {
+      if (sequence === loadSequence.current) toast('error', extractError(err));
+    } finally {
+      if (sequence === loadSequence.current) setActionLoading(false);
+    }
   };
 
   const handleLiveMode = async () => {
     if (!id) return;
     if (!confirm('Enable live mode? This allows real payments.')) return;
+    const sequence = loadSequence.current;
     setActionLoading(true);
     try {
       const m = await enableLiveMode(id);
+      if (sequence !== loadSequence.current) return;
       setMerchant(m);
       toast('success', 'Live mode enabled');
-    } catch (err) { toast('error', extractError(err)); }
-    finally { setActionLoading(false); }
+    } catch (err) {
+      if (sequence === loadSequence.current) toast('error', extractError(err));
+    } finally {
+      if (sequence === loadSequence.current) setActionLoading(false);
+    }
   };
 
   if (loading) return <CardSpinner />;
+  if (loadError) return <LoadErrorState title="Merchant details are unavailable"
+    description="The merchant details could not be loaded. Retry before changing the account."
+    onRetry={() => { void load(); }} />;
   if (!merchant) return (
     <div className="flex flex-col items-center justify-center py-16">
       <p className="text-slate-500 mb-4">Merchant not found</p>

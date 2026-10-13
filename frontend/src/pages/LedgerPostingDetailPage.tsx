@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Scale } from 'lucide-react';
-import { getLedgerEntries, listLedgerPostings } from '../services/ledgerService';
+import { getLedgerEntries, getLedgerPosting } from '../services/ledgerService';
 import { CardSpinner } from '../components/Spinner';
-import { toast } from '../components/Toast';
-import { extractError } from '../api';
+import { LoadErrorState } from '../components/LoadErrorState';
 import { formatCurrency, formatDateTime } from '../lib/utils';
 import type { LedgerEntry, LedgerPosting } from '../types';
 
@@ -13,18 +12,38 @@ export function LedgerPostingDetailPage() {
   const [posting, setPosting] = useState<LedgerPosting | null>(null);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const loadSequence = useRef(0);
 
-  useEffect(() => {
-    Promise.all([listLedgerPostings(200), getLedgerEntries(postingId)])
-      .then(([postings, lines]) => {
-        setPosting(postings.find((item) => item.id === postingId) || null);
-        setEntries(lines);
-      })
-      .catch((err) => toast('error', extractError(err)))
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const [record, lines] = await Promise.all([getLedgerPosting(postingId), getLedgerEntries(postingId)]);
+      if (sequence !== loadSequence.current) return;
+      if (!record || lines.length === 0) throw new Error('Ledger posting details could not be verified');
+      setPosting(record);
+      setEntries(lines);
+    } catch (err) {
+      if (sequence !== loadSequence.current) return;
+      setPosting(null);
+      setEntries([]);
+      setLoadError((err as { response?: { status?: number } })?.response?.status !== 404);
+    } finally {
+      if (sequence === loadSequence.current) setLoading(false);
+    }
   }, [postingId]);
 
+  useEffect(() => {
+    void load();
+    return () => { loadSequence.current++; };
+  }, [load]);
+
   if (loading) return <CardSpinner />;
+  if (loadError) return <LoadErrorState title="Ledger posting is unavailable"
+    description="The posting and its entries could not be verified. Retry to load the recorded details."
+    onRetry={() => { void load(); }} />;
   if (!posting) {
     return (
       <div className="card p-8 text-center text-slate-500">

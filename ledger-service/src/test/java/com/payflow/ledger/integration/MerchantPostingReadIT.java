@@ -102,7 +102,16 @@ class MerchantPostingReadIT {
     }
 
     @Test void malformedPostingIdentifiersAreRejected() throws Exception {
-        mvc.perform(get("/api/v1/ledger/postings/not-a-uuid").with(actor(UUID.randomUUID(), "ledger:read")))
-                .andExpect(status().isBadRequest());
+        for (String suffix : List.of("", "/entries")) {
+            mvc.perform(get("/api/v1/ledger/postings/not-a-uuid" + suffix)
+                            .with(actor(UUID.randomUUID(), "ledger:read")))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+        }
+    }
+
+    @Test void missingEndpointsReturn404WithoutEchoingThePath() throws Exception {
+        mvc.perform(get("/api/v1/ledger/invalid-endpoint").with(actor(UUID.randomUUID(), "ledger:read")))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("The requested endpoint does not exist"));
     }
 }

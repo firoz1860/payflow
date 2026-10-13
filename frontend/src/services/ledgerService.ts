@@ -15,3 +15,8 @@ export async function getLedgerEntries(postingId: string) {
   const res = await api.get<LedgerEntry[]>(`/ledger/postings/${postingId}/entries`);
   return res.data;
 }
+
+export async function getLedgerPosting(postingId: string) {
+  const res = await api.get<LedgerPosting>(`/ledger/postings/${postingId}`);
+  return res.data;
+}
