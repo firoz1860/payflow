@@ -12,6 +12,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.time.Instant;
 import java.util.List;
 @RestControllerAdvice
@@ -49,6 +52,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleMalformed(Exception ex) {
         return ResponseEntity.badRequest().body(ApiErrorResponse.of(
                 ErrorCode.VALIDATION_FAILED, ex.getMessage(), CorrelationId.get()));
+    }
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidParameter(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.badRequest().body(ApiErrorResponse.of(
+                ErrorCode.VALIDATION_FAILED, "Request parameter is invalid", CorrelationId.get()));
+    }
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<ApiErrorResponse> handleMissingEndpoint(Exception ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiErrorResponse.of(
+                ErrorCode.NOT_FOUND, "The requested endpoint does not exist", CorrelationId.get()));
     }
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleIntegrity(DataIntegrityViolationException ex) {

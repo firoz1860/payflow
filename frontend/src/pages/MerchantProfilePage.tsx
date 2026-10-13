@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Building2, Save, RefreshCw } from 'lucide-react';
 import { getMyMerchant, updateMyMerchant } from '../services/merchantService';
 import { PageHeader } from '../components/PageHeader';
 import { CardSpinner } from '../components/Spinner';
+import { LoadErrorState } from '../components/LoadErrorState';
 import { toast } from '../components/Toast';
 import { extractError } from '../api';
 import { StatusBadge } from '../components/StatusBadge';
@@ -14,32 +15,53 @@ import type { Merchant } from '../types';
 export function MerchantProfilePage() {
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const loadSequence = useRef(0);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ businessName: '', phone: '', defaultCurrency: 'INR' });
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
     setLoading(true);
+    setLoadError(false);
     try {
       const m = await getMyMerchant();
+      if (sequence !== loadSequence.current) return;
       setMerchant(m);
-      setForm({ businessName: m.businessName, phone: m.phone, defaultCurrency: m.defaultCurrency });
-    } catch { setMerchant(null); }
-    finally { setLoading(false); }
-  };
+      setForm({ businessName: m.businessName, phone: m.phone ?? '', defaultCurrency: m.defaultCurrency });
+    } catch (err) {
+      if (sequence !== loadSequence.current) return;
+      setMerchant(null);
+      setLoadError((err as { response?: { status?: number } })?.response?.status !== 404);
+    } finally {
+      if (sequence === loadSequence.current) setLoading(false);
+    }
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    void load();
+    return () => { loadSequence.current++; };
+  }, [load]);
 
   const handleSave = async () => {
+    const sequence = loadSequence.current;
     setSaving(true);
     try {
       const updated = await updateMyMerchant(form);
+      if (sequence !== loadSequence.current) return;
       setMerchant(updated);
       toast('success', 'Merchant profile updated');
-    } catch (err) { toast('error', extractError(err)); }
-    finally { setSaving(false); }
+    } catch (err) {
+      if (sequence === loadSequence.current) toast('error', extractError(err));
+    } finally {
+      if (sequence === loadSequence.current) setSaving(false);
+    }
   };
 
   if (loading) return <CardSpinner />;
+  if (loadError) return <LoadErrorState title="Merchant profile is unavailable"
+    description="Your merchant details could not be loaded. Retry before editing the profile."
+    onRetry={() => { void load(); }} />;
   if (!merchant) return <p className="text-slate-500">No merchant account found.</p>;
 
   return (

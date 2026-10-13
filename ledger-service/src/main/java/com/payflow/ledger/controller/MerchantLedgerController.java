@@ -82,21 +82,34 @@ public class MerchantLedgerController {
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping("/postings/{postingId}")
+    @PreAuthorize("hasAuthority('ledger:read')")
+    @Operation(summary = "Read one merchant-owned ledger posting")
+    public ResponseEntity<PostingView> posting(
+            @AuthenticationPrincipal PayFlowPrincipal principal,
+            @PathVariable UUID postingId) {
+        return ResponseEntity.ok(toPostingView(ownedPosting(principal, postingId)));
+    }
+
     @GetMapping("/postings/{postingId}/entries")
     @PreAuthorize("hasAuthority('ledger:read')")
     @Operation(summary = "List entries for one merchant-owned ledger posting")
     public ResponseEntity<List<EntryView>> entries(
             @AuthenticationPrincipal PayFlowPrincipal principal,
             @PathVariable UUID postingId) {
-        String merchantId = TenantGuard.requireMerchant(principal).toString();
-        LedgerPosting posting = postingRepository.findById(postingId)
-                .filter(p -> merchantId.equals(p.getMerchantId()))
-                .orElseThrow(() -> PayFlowException.notFound("Ledger posting not found"));
+        LedgerPosting posting = ownedPosting(principal, postingId);
 
         List<EntryView> result = entryRepository.findByPostingId(posting.getId()).stream()
                 .map(this::toEntryView)
                 .toList();
         return ResponseEntity.ok(result);
+    }
+
+    private LedgerPosting ownedPosting(PayFlowPrincipal principal, UUID postingId) {
+        String merchantId = TenantGuard.requireMerchant(principal).toString();
+        return postingRepository.findById(postingId)
+                .filter(p -> merchantId.equals(p.getMerchantId()))
+                .orElseThrow(() -> PayFlowException.notFound("Ledger posting not found"));
     }
 
     private PostingView toPostingView(LedgerPosting posting) {
