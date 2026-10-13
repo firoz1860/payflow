@@ -66,6 +66,26 @@ test('synchronous repeated submits send only one creation request', async () => 
   await screen.findByRole('button', { name: 'Create Another' });
 });
 
+test('the uncertainty warning stays visible during a retry until a verified result arrives', async () => {
+  let finish!: (payment: Payment) => void;
+  service.createPayment.mockRejectedValueOnce(new Error('Response lost after acceptance'));
+  service.createPayment.mockImplementationOnce(() => new Promise<Payment>(resolve => { finish = resolve; }));
+  form();
+  fireEvent.click(screen.getByRole('button', { name: 'Create Payment' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('may already exist');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Retry same request' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('may already exist');
+  expect(screen.getByRole('link', { name: 'View payments in new tab' })).toHaveAttribute('href', '/payments');
+  expect(screen.getByRole('spinbutton')).toBeDisabled();
+  expect(service.createPayment).toHaveBeenCalledTimes(2);
+  expect(service.createPayment.mock.calls[1]).toEqual(service.createPayment.mock.calls[0]);
+
+  await act(async () => { finish(result); });
+  await screen.findByRole('button', { name: 'Create Another' });
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+});
+
 test('Create Another after a verified result starts a new logical request', async () => {
   service.createPayment.mockResolvedValue(result);
   const node = form();

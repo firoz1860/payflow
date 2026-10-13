@@ -38,7 +38,6 @@ export function CreatePaymentPage() {
     if (submitting.current) return;
     submitting.current = true;
     setLoading(true);
-    setCreateError(false);
     setResult(null);
     try {
       if (!request.current) {
@@ -52,6 +51,7 @@ export function CreatePaymentPage() {
       }
       const payment = await createPayment(request.current.payload, request.current.key);
       setResult(payment);
+      setCreateError(false);
       toast('success', 'Payment created successfully');
     } catch (err) {
       setCreateError(true);
